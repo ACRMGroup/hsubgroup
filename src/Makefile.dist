@@ -1,4 +1,4 @@
-COPT  = -ansi -Wall -pedantic
+COPT  = -ansi -Wall -pedantic -O3
 LINK1 = 
 LINK2 =
 CC    = cc

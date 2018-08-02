@@ -1,4 +1,70 @@
-/***********************************************************************/
+/*************************************************************************
+
+   Program:    hsubgroup
+   File:       sophie.c
+   
+   Version:    V2.0
+   Date:       01.08.18
+   Function:   Assign human subgroups from antibody sequences in PIR file
+   
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2018
+   Author:     Dr. Andrew C. R. Martin
+   Address:    Biomolecular Structure & Modelling Unit,
+               Department of Biochemistry & Molecular Biology,
+               University College,
+               Gower Street,
+               London.
+               WC1E 6BT.
+   EMail:      andrew@bioinf.org.uk
+               
+**************************************************************************
+
+   This program is not in the public domain, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC
+
+   The code may be modified as required, but any modifications must be
+   documented so that the person responsible can be identified. If someone
+   else breaks this code, I don't want to be blamed for code that does not
+   work! 
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
+
+**************************************************************************
+
+   Description:
+   ============
+
+   This code is based loosely on the original by Sophie Deret 
+   (deret@ceylan.necker.fr) from part of her Subim program which you can
+   download from http://www.bioinf.org.uk/abs/subim.tar.gz
+
+   Sophie kindly allowed us to integrate her code into our programs and
+   it is provided free and with no warranty. This is a complete
+   rewrite of her code using a structure to maintain all the info
+   related to each subgroup instead of diverse arrays. Some redundant
+   steps were eliminated compared with the original. The only thing
+   remaining is the algorithm (as described in Deret, S. et al (1995),
+   "SUBIM: a Program for Analysing the Kabat Database and Determining 
+   the Variability Subgroup of a new Immunoglobulin Sequence", Comput.
+   Appl. Biosci., 11:435-439) and the consensus sequence data and
+   scores.
+
+**************************************************************************
+
+   Usage:
+   ======
+
+**************************************************************************
+
+   Revision History:
+   =================
+   V1.0  16.06.97   Original
+   V2.0  01.08.18   Complete rewrite
+
+*************************************************************************/
+
 /* Includes
 */
 #include  <stdio.h>
@@ -7,261 +73,529 @@
 #include  <stdlib.h>
 #include  <ctype.h>
 
-/***********************************************************************/
+/************************************************************************/
 /* Defines and macros
 */
-#define MAX_NB_SEQ 26
-#define MAX_SEQ_GEN 21
+#define MAXSUBTYPES      13  /* The number of subtypes                  */
+#define MAXREFSEQLEN     21  /* The length of the reference sequences   */
+#define MAXTRUNCATION     6  /* Amount we can Nter truncate a sequence  */
+#define MAXEXTENSION     20  /* Amount we can Nter extend a sequence    */
+#define MAXBUFF          80  /* General purpose buffer                  */
+#define OFFSETTRUNCATION  1  /* Using offsets for Nter truncation       */
+#define OFFSETEXTENSION   2  /* Using offsets for Nter extension        */
 
 typedef float REAL;
 
-/***********************************************************************/
-/* Static externals
-*/
-static char *sTab_seq_gen[MAX_NB_SEQ] = {
-"XDIQMTQSPSSLSASVGDRVT" , "ZBVZLMZAATTVPLTPRESAI" ,
-"DIVMTQSPLSLPVTPGEPASI" , "DVILTQTPLSSSGTLVQPSAI" ,
-"EIVLTQSPGTLSLSPGERATL" , "DTLMRZVPASMCVTVGZKVAI" ,
-"DIVMTQSPDSLAVSLGERATI" , "DLVLSQSPBTLAVSPGDQATV" ,
-"ZSVLTQPPSVSGAPGQRVTIS" , "QALLTZPSSASATSGEKASLT" ,
-"ZSALTQPASVSGSPGQSITIS" , "HVIVAZSPRATATLGATVKVT" ,
-"XSYELTQPPSVSVSPGQTARI" , "XFFVVSZASVLFLAALZPVSA" ,
-"SELTQDPAVSVALGQTVRITC" , "SALVQPASVZGSPGZSASIGC" ,
-"ZSALTQPPSASGSPGQSVTIS" , "ZSALTQPPSASGSLGQSVTIS" ,
-"NFMLTQPHSVSESPGKTVTIS" , "DLILIEPLSLSDSPEQKIIFS" ,
-"XQVQLVQSGAEVKKPGASVKV" , "XZMHVLASASDLNRLPETLRI" ,
-"QVQLQESGPGLVKPSQTLSLT" , "ZLTVRQWSAALLRATEAFTVI" ,
-"XEVQLVESGGGLVQPGGSLRL" , "XQMHALQXTADVIKAERFMRV"
-};
-
-static REAL sTab_stat_gen[MAX_NB_SEQ][MAX_SEQ_GEN] = {
-{0.016,0.748,0.759,0.710,0.721,0.819,0.803,0.819,0.814,0.776,0.579,
-    0.841,0.879,0.672,0.798,0.699,0.819,0.639,0.743,0.683,0.803}, /* HKL1 */
-{0.005,0.022,0.016,0.022,0.087,0.005,0.038,0.005,0.005,0.011,0.289,
-    0.033,0.022,0.093,0.022,0.120,0.005,0.109,0.027,0.114,0.032}, /* HKL1B */
-{0.980,0.921,0.921,0.902,0.921,0.902,0.568,0.843,0.862,0.843,0.784,
-    0.588,0.784,0.666,0.608,0.607,0.392,0.686,0.686,0.686,0.686}, /* HKL2 */
-{0.000,0.019,0.019,0.039,0.000,0.000,0.235,0.000,0.000,0.000,0.039,
-    0.235,0.019,0.000,0.078,0.039,0.274,0.000,0.000,0.000,0.000}, /* HKL2b */
-{0.801,0.801,0.880,0.722,0.900,0.861,0.894,0.894,0.477,0.834,0.847,
-    0.841,0.680,0.814,0.841,0.961,0.859,0.867,0.828,0.851,0.914}, /* HKL3 */
-{0.039,0.013,0.006,0.198,0.006,0.039,0.006,0.000,0.285,0.013,0.006,
-    0.006,0.165,0.019,0.006,0.000,0.047,0.023,0.094,0.023,0.007}, /* HKL3B */
-{0.944,0.888,0.944,0.833,0.888,0.944,0.888,0.944,0.555,0.722,0.888,
-    0.888,0.888,0.722,0.555,0.722,0.388,0.555,0.777,0.777,0.611}, /* HKL4 */
-{0.000,0.055,0.000,0.111,0.055,0.000,0.000,0.000,0.166,0.111,0.000,
-    0.000,0.000,0.000,0.166,0.000,0.222,0.111,0.000,0.000,0.111}, /* HKL4B */
-{0.585,0.878,0.878,0.926,0.951,0.902,0.926,0.902,0.926,0.487,0.951,
-    0.512,0.512,0.902,0.902,0.853,0.488,0.731,0.756,0.829,0.829}, /* HLL1 */
-{0.292,0.024,0.024,0.000,0.000,0.024,0.000,0.024,0.000,0.390,0.000,
-    0.512,0.390,0.024,0.000,0.024,0.268,0.170,0.048,0.024,0.024}, /* HLL1B */
-{0.736,0.789,0.736,0.947,0.894,0.947,0.894,0.605,0.973,0.894,0.947,
-    0.763,0.973,0.763,1.00,0.763,0.921,0.579,0.815,0.579,0.605}, /* HLL2 */
-{0.184,0.158,0.131,0.026,0.052,0.026,0.052,0.289,0.026,0.052,0.026,
-    0.184,0.026,0.184,0.000,0.131,0.052,0.368,0.157,0.157,0.184}, /* HLL2B */
-{0.032,0.290,0.919,0.467,0.887,0.854,0.887,0.822,0.919,0.887,0.790,
-    0.887,0.854,0.629,0.806,0.822,0.742,0.822,0.806,0.354,0.806}, /* HLL3 */
-{0.000,0.032,0.032,0.209,0.048,0.032,0.064,0.048,0.016,0.016,0.08,
-    0.016,0.032,0.193,0.048,0.016,0.048,0.016,0.016,0.290,0.016}, /* HLL3B */
-{0.777,0.666,0.888,0.777,0.888,0.444,0.777,0.444,0.888,0.777,0.777,
-    0.666,0.555,0.888,0.666,0.777,0.555,0.555,0.888,0.777,0.777}, /* HLL4 */
-{0.000,0.111,0.000,0.111,0.000,0.333,0.111,0.333,0.000,0.111,0.111,
-    0.222,0.333,0.000,0.222,0.111,0.222,0.111,0.000,0.111,0.000}, /* HLL4B */
-{1.000,1.000,1.000,1.000,1.000,1.000,1.000,1.000,1.000,1.000,1.000,
-    1.000,1.000,0.666,1.000,1.000,1.000,1.000,1.000,1.000,1.000}, /* HLL5 */
-{0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,0.000,
-    0.000,0.000,0.333,0.000,0.000,0.000,0.000,0.000,0.000,0.000}, /* HLL5B */
-{0.642,0.857,0.928,1.000,0.857,0.928,1.000,0.714,1.000,0.928,1.000,
-    0.785,0.857,0.928,0.857,0.785,0.785,0.785,0.642,0.642,1.000}, /* HLL6 */
-{0.357,0.142,0.071,0.000,0.071,0.071,0.000,0.071,0.000,0.071,0.000,
-    0.071,0.000,0.000,0.071,0.071,0.071,0.071,0.142,0.071,0.000}, /* HLL6B */
-{0.008,0.443,0.756,0.747,0.782,0.634,0.539,0.704,0.686,0.643,0.686,
-    0.669,0.591,0.686,0.704,0.686,0.339,0.669,0.486,0.591,0.460}, /* HHC1 */
-{0.000,0.200,0.017,0.026,0.008,0.034,0.130,0.000,0.017,0.026,0.017,
-    0.043,0.052,0.008,0.008,0.008,0.182,0.008,0.173,0.104,0.200}, /* HHC1B */
-{0.594,0.554,0.524,0.722,0.564,0.514,0.643,0.702,0.623,0.613,0.702,
-    0.653,0.623,0.673,0.584,0.376,0.673,0.693,0.603,0.702,0.712}, /* HHC2 */
-{0.099,0.128,0.099,0.009,0.059,0.188,0.059,0.009,0.049,0.049,0.000,
-    0.059,0.089,0.009,0.099,0.267,0.019,0.009,0.089,0.009,0.019}, /* HHC2B */
-{0.004,0.712,0.828,0.768,0.847,0.643,0.768,0.810,0.842,0.879,0.699,
-    0.699,0.800,0.546,0.754,0.736,0.620,0.703,0.750,0.662,0.703}, /* HHC3 */
-{0.000,0.069,0.027,0.032,0.009,0.199,0.046,0.031,0.007,0.004,0.092,
-    0.115,0.041,0.115,0.009,0.009,0.106,0.009,0.004,0.069,0.046}  /* HHC3B */
-};
-
-static char *sTab_res_gen[MAX_NB_SEQ/2] = {
-"Human Kappa Light chain subgroup I  ",
-"Human Kappa Light chain subgroup II ",
-"Human Kappa Light chain subgroup III",
-"Human Kappa Light chain subgroup IV ",
-"Human Lambda Light chain subgroup I  ",
-"Human Lambda Light chain subgroup II ",
-"Human Lambda Light chain subgroup III",
-"Human Lambda Light chain subgroup IV ",
-"Human Lambda Light chain subgroup V  ",
-"Human Lambda Light chain subgroup VI ",
-"Human Heavy chain subgroup I  ",
-"Human Heavy chain subgroup II ",
-"Human Heavy chain subgroup III"
-};
+/* Used to store info on a subgroup                                     */
+typedef struct
+{
+   REAL topScores[MAXREFSEQLEN],
+        secondScores[MAXREFSEQLEN];
+   int  chainType,
+        subGroup;
+   char name[MAXBUFF],
+        topSeq[MAXBUFF],
+        secondSeq[MAXBUFF];
+} SUBGROUPINFO;
 
 
-/***********************************************************************/
+/************************************************************************/
 /* Prototypes
 */
-void det_sgpe(char *tseq, long *class, long *sgpe);
-static REAL calc_stat(long sgp, char *tseq, long deb);
+#include "sophie.h"
+static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
+                      int offset, int offsetType);
+static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType, 
+                             int subGroup,
+                             char *name, 
+                             char *topSeq, 
+                             REAL tv0,  REAL tv1,  REAL tv2,  REAL tv3, 
+                             REAL tv4,  REAL tv5,  REAL tv6,  REAL tv7, 
+                             REAL tv8,  REAL tv9,  REAL tv10, REAL tv11,
+                             REAL tv12, REAL tv13, REAL tv14, REAL tv15,
+                             REAL tv16, REAL tv17, REAL tv18, REAL tv19,
+                             REAL tv20, 
+                             char *secondSeq, 
+                             REAL sv0,  REAL sv1,  REAL sv2,  REAL sv3,
+                             REAL sv4,  REAL sv5,  REAL sv6,  REAL sv7,
+                             REAL sv8,  REAL sv9,  REAL sv10, REAL sv11,
+                             REAL sv12, REAL sv13, REAL sv14, REAL sv15,
+                             REAL sv16, REAL sv17, REAL sv18, REAL sv19,
+                             REAL sv20);
+static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo);
 
 
-/***********************************************************************/
-void det_sgpe(char *tseq, long *class, long *sgpe)
+/************************************************************************/
+/*>static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, 
+                                int chainType, int subGroup,
+                                char *name, 
+                                char *topSeq, 
+                                REAL tv0, REAL tv1,  REAL tv2,  REAL tv3, 
+                                REAL tv4, REAL tv5,  REAL tv6,  REAL tv7, 
+                                REAL tv8, REAL tv9,  REAL tv10, REAL tv11,
+                                REAL tv12,REAL tv13, REAL tv14, REAL tv15,
+                                REAL tv16,REAL tv17, REAL tv18, REAL tv19,
+                                REAL tv20, 
+                                char *secondSeq, 
+                                REAL sv0, REAL sv1,  REAL sv2,  REAL sv3,
+                                REAL sv4, REAL sv5,  REAL sv6,  REAL sv7,
+                                REAL sv8, REAL sv9,  REAL sv10, REAL sv11,
+                                REAL sv12,REAL sv13, REAL sv14, REAL sv15,
+                                REAL sv16,REAL sv17, REAL sv18, REAL sv19,
+                                REAL sv20)
+   -----------------------------------------------------------------------
+*//**
+   \param[out]   *subGroupInfo  Pointer to structure to be populated
+   \param[in]    chainType      CHAINTYPE_HEAVY
+                                CHAINTYPE_KAPPA
+                                CHAINTYPE_LAMBDA
+   \param[in]    subGroup       Subgroup number
+   \param[in]    name           Text version fo chain type and subgroup
+   \param[in]    topSeq         The reference sequence of top amino acid
+                                at each position
+   \param[in]    tv0-tv20       The scores for the 21 positions in topSeq
+   \param[in]    secondSeq      The reference sequence for the second
+                                amino acid at each position
+   \param[in]    sv0-sv20       The scores for the 21 positions in 
+                                secondSeq
+
+   Initialize a subGroupInfo structure
+
+-  01.08.18  Original   By: ACRM
+*/
+static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType, 
+                             int subGroup,
+                             char *name, 
+                             char *topSeq, 
+                             REAL tv0,  REAL tv1,  REAL tv2,  REAL tv3, 
+                             REAL tv4,  REAL tv5,  REAL tv6,  REAL tv7, 
+                             REAL tv8,  REAL tv9,  REAL tv10, REAL tv11,
+                             REAL tv12, REAL tv13, REAL tv14, REAL tv15,
+                             REAL tv16, REAL tv17, REAL tv18, REAL tv19,
+                             REAL tv20, 
+                             char *secondSeq, 
+                             REAL sv0,  REAL sv1,  REAL sv2,  REAL sv3,
+                             REAL sv4,  REAL sv5,  REAL sv6,  REAL sv7,
+                             REAL sv8,  REAL sv9,  REAL sv10, REAL sv11,
+                             REAL sv12, REAL sv13, REAL sv14, REAL sv15,
+                             REAL sv16, REAL sv17, REAL sv18, REAL sv19,
+                             REAL sv20)
 {
-   long sgp1;
-   REAL val,max1,max2;
-   long sgp,i;
-   long sgp_deb,sgp_fin;
+   strncpy(subGroupInfo->name,      name,      MAXBUFF);
+   strncpy(subGroupInfo->topSeq,    topSeq,    MAXBUFF);
+   strncpy(subGroupInfo->secondSeq, secondSeq, MAXBUFF);
+
+   subGroupInfo->chainType        = chainType;
+   subGroupInfo->subGroup         = subGroup;
+
+   subGroupInfo->topScores[0]     = tv0;
+   subGroupInfo->topScores[1]     = tv1;
+   subGroupInfo->topScores[2]     = tv2;
+   subGroupInfo->topScores[3]     = tv3;
+   subGroupInfo->topScores[4]     = tv4;
+   subGroupInfo->topScores[5]     = tv5;
+   subGroupInfo->topScores[6]     = tv6;
+   subGroupInfo->topScores[7]     = tv7;
+   subGroupInfo->topScores[8]     = tv8;
+   subGroupInfo->topScores[9]     = tv9;
+   subGroupInfo->topScores[10]    = tv10;
+   subGroupInfo->topScores[11]    = tv11;
+   subGroupInfo->topScores[12]    = tv12;
+   subGroupInfo->topScores[13]    = tv13;
+   subGroupInfo->topScores[14]    = tv14;
+   subGroupInfo->topScores[15]    = tv15;
+   subGroupInfo->topScores[16]    = tv16;
+   subGroupInfo->topScores[17]    = tv17;
+   subGroupInfo->topScores[18]    = tv18;
+   subGroupInfo->topScores[19]    = tv19;
+   subGroupInfo->topScores[20]    = tv20;
+
+   subGroupInfo->secondScores[0]  = sv0;
+   subGroupInfo->secondScores[1]  = sv1;
+   subGroupInfo->secondScores[2]  = sv2;
+   subGroupInfo->secondScores[3]  = sv3;
+   subGroupInfo->secondScores[4]  = sv4;
+   subGroupInfo->secondScores[5]  = sv5;
+   subGroupInfo->secondScores[6]  = sv6;
+   subGroupInfo->secondScores[7]  = sv7;
+   subGroupInfo->secondScores[8]  = sv8;
+   subGroupInfo->secondScores[9]  = sv9;
+   subGroupInfo->secondScores[10] = sv10;
+   subGroupInfo->secondScores[11] = sv11;
+   subGroupInfo->secondScores[12] = sv12;
+   subGroupInfo->secondScores[13] = sv13;
+   subGroupInfo->secondScores[14] = sv14;
+   subGroupInfo->secondScores[15] = sv15;
+   subGroupInfo->secondScores[16] = sv16;
+   subGroupInfo->secondScores[17] = sv17;
+   subGroupInfo->secondScores[18] = sv18;
+   subGroupInfo->secondScores[19] = sv19;
+   subGroupInfo->secondScores[20] = sv20;
+}
+
+/************************************************************************/
+/*>static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
+   --------------------------------------------------------------
+*//**
+   \param[out]  *subGroupInfo   Array of SUBGROUPINFO structures to
+                                be initialized
+
+   Initializes all the subgroup information
+
+-  01.08.18  Original   By: ACRM
+*/
+static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
+{
+   InitSubgroupInfo(&subGroupInfo[0],  CHAINTYPE_KAPPA,  1, 
+                    "Human Kappa Light chain subgroup I",    
+                    "XDIQMTQSPSSLSASVGDRVT", 
+                    0.016,0.748,0.759,0.710,0.721,0.819,0.803,
+                    0.819,0.814,0.776,0.579,0.841,0.879,0.672,
+                    0.798,0.699,0.819,0.639,0.743,0.683,0.803,
+                    "ZBVZLMZAATTVPLTPRESAI",
+                    0.005,0.022,0.016,0.022,0.087,0.005,0.038,
+                    0.005,0.005,0.011,0.289,0.033,0.022,0.093,
+                    0.022,0.120,0.005,0.109,0.027,0.114,0.032);
+
+   InitSubgroupInfo(&subGroupInfo[1],  CHAINTYPE_KAPPA,  2, 
+                    "Human Kappa Light chain subgroup II",   
+                    "DIVMTQSPLSLPVTPGEPASI", 
+                    0.980,0.921,0.921,0.902,0.921,0.902,0.568,
+                    0.843,0.862,0.843,0.784,0.588,0.784,0.666,
+                    0.608,0.607,0.392,0.686,0.686,0.686,0.686,
+                    "DVILTQTPLSSSGTLVQPSAI",  
+                    0.000,0.019,0.019,0.039,0.000,0.000,0.235,
+                    0.000,0.000,0.000,0.039,0.235,0.019,0.000,
+                    0.078,0.039,0.274,0.000,0.000,0.000,0.000);
+
+   InitSubgroupInfo(&subGroupInfo[2],  CHAINTYPE_KAPPA,  3, 
+                    "Human Kappa Light chain subgroup III",  
+                    "EIVLTQSPGTLSLSPGERATL", 
+                    0.801,0.801,0.880,0.722,0.900,0.861,0.894,
+                    0.894,0.477,0.834,0.847,0.841,0.680,0.814,
+                    0.841,0.961,0.859,0.867,0.828,0.851,0.914,
+                    "DTLMRZVPASMCVTVGZKVAI",
+                    0.039,0.013,0.006,0.198,0.006,0.039,0.006,
+                    0.000,0.285,0.013,0.006,0.006,0.165,0.019,
+                    0.006,0.000,0.047,0.023,0.094,0.023,0.007);
+
+   InitSubgroupInfo(&subGroupInfo[3],  CHAINTYPE_KAPPA,  4, 
+                    "Human Kappa Light chain subgroup IV",   
+                    "DIVMTQSPDSLAVSLGERATI", 
+                    0.944,0.888,0.944,0.833,0.888,0.944,0.888,
+                    0.944,0.555,0.722,0.888,0.888,0.888,0.722,
+                    0.555,0.722,0.388,0.555,0.777,0.777,0.611,
+                    "DLVLSQSPBTLAVSPGDQATV",  
+                    0.000,0.055,0.000,0.111,0.055,0.000,0.000,
+                    0.000,0.166,0.111,0.000,0.000,0.000,0.000,
+                    0.166,0.000,0.222,0.111,0.000,0.000,0.111);
    
-   max1 = 0;
-   max2 = 0;
-   sgp1 = -1;
-   sgp_deb = 0;
-   sgp_fin = MAX_NB_SEQ;
+   InitSubgroupInfo(&subGroupInfo[4],  CHAINTYPE_LAMBDA, 1, 
+                    "Human Lambda Light chain subgroup I",   
+                    "ZSVLTQPPSVSGAPGQRVTIS", 
+                    0.585,0.878,0.878,0.926,0.951,0.902,0.926,
+                    0.902,0.926,0.487,0.951,0.512,0.512,0.902,
+                    0.902,0.853,0.488,0.731,0.756,0.829,0.829,
+                    "QALLTZPSSASATSGEKASLT",  
+                    0.292,0.024,0.024,0.000,0.000,0.024,0.000,
+                    0.024,0.000,0.390,0.000,0.512,0.390,0.024,
+                    0.000,0.024,0.268,0.170,0.048,0.024,0.024);
+
+   InitSubgroupInfo(&subGroupInfo[5],  CHAINTYPE_LAMBDA, 2, 
+                    "Human Lambda Light chain subgroup II",  
+                    "ZSALTQPASVSGSPGQSITIS", 
+                    0.736,0.789,0.736,0.947,0.894,0.947,0.894,
+                    0.605,0.973,0.894,0.947,0.763,0.973,0.763,
+                    1.000,0.763,0.921,0.579,0.815,0.579,0.605,
+                    "HVIVAZSPRATATLGATVKVT",  
+                    0.184,0.158,0.131,0.026,0.052,0.026,0.052,
+                    0.289,0.026,0.052,0.026,0.184,0.026,0.184,
+                    0.000,0.131,0.052,0.368,0.157,0.157,0.184);
+
+   InitSubgroupInfo(&subGroupInfo[6],  CHAINTYPE_LAMBDA, 3, 
+                    "Human Lambda Light chain subgroup III", 
+                    "XSYELTQPPSVSVSPGQTARI", 
+                    0.032,0.290,0.919,0.467,0.887,0.854,0.887,
+                    0.822,0.919,0.887,0.790,0.887,0.854,0.629,
+                    0.806,0.822,0.742,0.822,0.806,0.354,0.806,
+                    "XFFVVSZASVLFLAALZPVSA",  
+                    0.000,0.032,0.032,0.209,0.048,0.032,0.064,
+                    0.048,0.016,0.016,0.08,0.016,0.032,0.193,
+                    0.048,0.016,0.048,0.016,0.016,0.290,0.016);
+
+   InitSubgroupInfo(&subGroupInfo[7],  CHAINTYPE_LAMBDA, 4, 
+                    "Human Lambda Light chain subgroup IV",  
+                    "SELTQDPAVSVALGQTVRITC", 
+                    0.777,0.666,0.888,0.777,0.888,0.444,0.777,
+                    0.444,0.888,0.777,0.777,0.666,0.555,0.888,
+                    0.666,0.777,0.555,0.555,0.888,0.777,0.777,
+                    "SALVQPASVZGSPGZSASIGC",  
+                    0.000,0.111,0.000,0.111,0.000,0.333,0.111,
+                    0.333,0.000,0.111,0.111,0.222,0.333,0.000,
+                    0.222,0.111,0.222,0.111,0.000,0.111,0.000);
    
-   for (sgp=sgp_deb;sgp<sgp_fin;sgp+=2) { /* sous groupe interessant */
-      for (i=0;i<6;i++) { /* decalage */
-         val = calc_stat(sgp,tseq,i);
-         if (val > max2) {
-            if (val > max1) {
-               max2 = max1;
-               max1 = val;
-               sgp1 = sgp;
-            }
-            else {
-               max2 = val;
-            }
-         }
-      }
-   }
-   printf("%s\n",sTab_res_gen[sgp1/2]);
-   if(strstr(sTab_res_gen[sgp1/2], "Kappa Light chain subgroup I  ")
-      != NULL) {
-      *sgpe = 1;
-      *class = 1;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Kappa Light chain subgroup II ")
-      != NULL) {
-      *class = 1;
-      *sgpe = 2;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Kappa Light chain subgroup III")
-      != NULL) {
-      *class = 1;
-      *sgpe = 3;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Kappa Light chain subgroup IV ")
-      != NULL) {
-      *class = 1;
-      *sgpe = 4;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup I  ")
-      != NULL) {
-      *class = 2;
-      *sgpe = 1;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup II ")
-      != NULL) {
-      *class = 2;
-      *sgpe = 2;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup III")
-      != NULL) {
-      *class = 2;
-      *sgpe = 3;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup IV ")
-      != NULL) {
-      *class = 2;
-      *sgpe = 4;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup V  ")
-      != NULL) {
-      *class = 2;
-      *sgpe = 5;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Lambda Light chain subgroup VI ")
-      != NULL) {
-      *class = 2;
-      *sgpe = 6;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Heavy chain subgroup I  ") != NULL) {
-      *class = 0;
-      *sgpe = 1;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Heavy chain subgroup II ") != NULL) {
-      *class = 0;
-      *sgpe = 2;
-   }
-   if(strstr(sTab_res_gen[sgp1/2], "Heavy chain subgroup III ") != NULL) {
-      *class = 0;
-      *sgpe = 3;
-   }
+   InitSubgroupInfo(&subGroupInfo[8],  CHAINTYPE_LAMBDA, 5, 
+                    "Human Lambda Light chain subgroup V",   
+                    "ZSALTQPPSASGSPGQSVTIS", 
+                    1.000,1.000,1.000,1.000,1.000,1.000,1.000,
+                    1.000,1.000,1.000,1.000,1.000,1.000,0.666,
+                    1.000,1.000,1.000,1.000,1.000,1.000,1.000,
+                    "ZSALTQPPSASGSLGQSVTIS",  
+                    0.000,0.000,0.000,0.000,0.000,0.000,0.000,
+                    0.000,0.000,0.000,0.000,0.000,0.000,0.333,
+                    0.000,0.000,0.000,0.000,0.000,0.000,0.000);
+
+   InitSubgroupInfo(&subGroupInfo[9],  CHAINTYPE_LAMBDA, 6, 
+                    "Human Lambda Light chain subgroup VI",  
+                    "NFMLTQPHSVSESPGKTVTIS", 
+                    0.642,0.857,0.928,1.000,0.857,0.928,1.000,
+                    0.714,1.000,0.928,1.000,0.785,0.857,0.928,
+                    0.857,0.785,0.785,0.785,0.642,0.642,1.000,
+                    "DLILIEPLSLSDSPEQKIIFS",  
+                    0.357,0.142,0.071,0.000,0.071,0.071,0.000,
+                    0.071,0.000,0.071,0.000,0.071,0.000,0.000,
+                    0.071,0.071,0.071,0.071,0.142,0.071,0.000);
+   
+   InitSubgroupInfo(&subGroupInfo[10], CHAINTYPE_HEAVY,  1, 
+                    "Human Heavy chain subgroup I",          
+                    "XQVQLVQSGAEVKKPGASVKV", 
+                    0.008,0.443,0.756,0.747,0.782,0.634,0.539,
+                    0.704,0.686,0.643,0.686,0.669,0.591,0.686,
+                    0.704,0.686,0.339,0.669,0.486,0.591,0.460,
+                    "XZMHVLASASDLNRLPETLRI",  
+                    0.000,0.200,0.017,0.026,0.008,0.034,0.130,
+                    0.000,0.017,0.026,0.017,0.043,0.052,0.008,
+                    0.008,0.008,0.182,0.008,0.173,0.104,0.200);
+
+   InitSubgroupInfo(&subGroupInfo[11], CHAINTYPE_HEAVY,  2, 
+                    "Human Heavy chain subgroup II",         
+                    "QVQLQESGPGLVKPSQTLSLT", 
+                    0.594,0.554,0.524,0.722,0.564,0.514,0.643,
+                    0.702,0.623,0.613,0.702,0.653,0.623,0.673,
+                    0.584,0.376,0.673,0.693,0.603,0.702,0.712,
+                    "ZLTVRQWSAALLRATEAFTVI",  
+                    0.099,0.128,0.099,0.009,0.059,0.188,0.059,
+                    0.009,0.049,0.049,0.000,0.059,0.089,0.009,
+                    0.099,0.267,0.019,0.009,0.089,0.009,0.019);
+
+   InitSubgroupInfo(&subGroupInfo[12], CHAINTYPE_HEAVY,  3, 
+                    "Human Heavy chain subgroup III",        
+                    "XEVQLVESGGGLVQPGGSLRL", 
+                    0.004,0.712,0.828,0.768,0.847,0.643,0.768,
+                    0.810,0.842,0.879,0.699,0.699,0.800,0.546,
+                    0.754,0.736,0.620,0.703,0.750,0.662,0.703,
+                    "XQMHALQXTADVIKAERFMRV", 
+                    0.000,0.069,0.027,0.032,0.009,0.199,0.046,
+                    0.031,0.007,0.004,0.092,0.115,0.041,0.115,
+                    0.009,0.009,0.106,0.009,0.004,0.069,0.046);
 }
 
 
-/***********************************************************************/
-static REAL calc_stat(long sgp, char *tseq, long deb)
+/************************************************************************/
+/*>void FindHumanSubgroup(char *sequence, int *chainType, int *subGroup)
+   ---------------------------------------------------------------------
+*//**
+   \param[in]   sequence     - the sequence of interest
+   \param[out]  chainType    - chain type: CHAINTYPE_HEAVY
+                                           CHAINTYPE_KAPPA
+                                           CHAINTYPE_LAMBDA
+   \param[out]  subGroup     - subgroup
+
+   Assigns the subgroup information for a sequence
+
+-  16.06.97 Original from Sophie's code
+-  01.08.18 Complete rewrite
+*/
+void FindHumanSubgroup(char *sequence, int *chainType, int *subGroup)
 {
-   REAL val,valmax;
-   long i;
+   static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
+   static int initialized = 0;
+   int  bestSubGroupCount = -1;
+   REAL val               = 0.0,
+        maxVal            = 0.0;
+   int  subGroupCount,
+        offset;
+
+#ifdef DEBUG
+   int  bestOffset = 0;
+#endif
    
-   val = 0;
-   valmax = 0;
-   for (i=0;i<MAX_SEQ_GEN-deb;i++) {
-      if (tseq[i] == sTab_seq_gen[sgp][i+deb]) {
-         val += sTab_stat_gen[sgp][i+deb];
-      }
-      else {
-         if (tseq[i] == sTab_seq_gen[sgp+1][i+deb]) {
-            val += sTab_stat_gen[sgp+1][i+deb];
+   if(!initialized)
+   {
+      initialized = 1;
+      InitializeAllSubgroups(subGroupInfo);
+   }
+   
+   /* For each sub-group                                                */
+   for(subGroupCount = 0; subGroupCount < MAXSUBTYPES; subGroupCount++) 
+   { 
+      /* Shift along the reference sequence to account for N-terminal
+         truncation of the test sequence
+      */
+      for(offset = 0; offset < MAXTRUNCATION; offset++)
+      {
+         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                         offset, OFFSETTRUNCATION);
+         if(val > maxVal) 
+         {
+            maxVal            = val;
+            bestSubGroupCount = subGroupCount;
+#ifdef DEBUG
+            bestOffset        = offset;
+#endif
          }
       }
-      valmax += sTab_stat_gen[sgp][i+deb];
+
+      /* Shift along the test sequence to account for N-terminal 
+         extension of the test sequence
+      */
+      for(offset = 0; offset < MAXEXTENSION; offset++)
+      {
+         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                         offset, OFFSETEXTENSION);
+         if(val > maxVal) 
+         {
+            maxVal            = val;
+            bestSubGroupCount = subGroupCount;
+#ifdef DEBUG
+            bestOffset        = -offset;
+#endif
+         }
+      }
    }
-   return((val*100.0)/valmax);
+
+   /* Print the winning name                                            */
+   printf("%s\n",subGroupInfo[bestSubGroupCount].name);
+#ifdef DEBUG
+   printf("Offset: %d (%s)\n", bestOffset, 
+          ((bestOffset<0)?"extension":"truncation"));
+#endif
+
+
+   /* Set the chain type and sub group                                  */
+   *chainType = subGroupInfo[bestSubGroupCount].chainType;
+   *subGroup  = subGroupInfo[bestSubGroupCount].subGroup;
 }
 
 
+/************************************************************************/
+/*static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
+                        int offset, int offsetType)
+  ------------------------------------------------------------
+*//**
+   \param[in]  subGroupInfo - Information for the subgroup we are 
+                              looking at
+   \param[in]  sequence     - The sequence we are looking at
+   \param[in]  offset       - Offset into the reference sequence or
+                              sequence
+   \param[in]  offsetType   - OFFSETTRUNCATION - account for the sequence
+                                                 being Nter truncated
+                              OFFSETEXTENSION  - account for the sequence
+                                                 being Nter extended
+
+   Calculates the score for the test sequence against a specified
+   subgroup
+
+-  16.06.97 Original from Sophie's code
+-  01.08.18 Complete rewrite
+*/
+static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
+                      int offset, int offsetType)
+{
+   REAL score    = 0.0,
+        scoreMax = 0.0;
+   int i;
+   
+   if(offsetType == OFFSETTRUNCATION)
+   {
+      for(i = 0; i < (MAXREFSEQLEN-offset); i++) 
+      {
+         /* Test if the residue matches the most common one at this 
+            position 
+         */
+         if(sequence[i] == subGroupInfo.topSeq[i+offset])
+         {
+            score += subGroupInfo.topScores[i+offset];
+         }
+         else /* If not, test if it matches the next most common        */
+         {
+            if(sequence[i] == subGroupInfo.secondSeq[i+offset])
+            {
+               score += subGroupInfo.secondScores[i+offset];
+            }
+         }
+         
+         /* Calculate the best score we could get against the most common 
+            residues
+         */
+         scoreMax += subGroupInfo.topScores[i+offset];
+      }
+   }
+   else  /* OFFSETEXTENSION                                             */
+   {
+      /* Return score of zero if we don't have enough residues in the
+         test sequence
+      */
+      if(strlen(sequence) < (MAXREFSEQLEN + offset))
+         return(0.0);
+      
+      for(i = 0; i < MAXREFSEQLEN; i++) 
+      {
+         /* Test if the residue matches the most common one at this 
+            position 
+         */
+         if(sequence[i+offset] == subGroupInfo.topSeq[i])
+         {
+            score += subGroupInfo.topScores[i];
+         }
+         else /* If not, test if it matches the next most common        */
+         {
+            if(sequence[i+offset] == subGroupInfo.secondSeq[i])
+            {
+               score += subGroupInfo.secondScores[i];
+            }
+         }
+         
+         /* Calculate the best score we could get against the most common 
+            residues
+         */
+         scoreMax += subGroupInfo.topScores[i];
+      }
+   }
+
+   return((score*100.0)/scoreMax);
+}
 
 
 #ifdef DEMO
-/***********************************************************************/
+/************************************************************************/
 /* Prototypes
 */
 int main(void);
-static void saisie_seq(char *tseq);
+static void RequestSequence(char *sequence);
 
 int main(void)
 {
-   char tseq[200];
-   long class;
-   long sgpe;
+   char sequence[200];
+   int  chainType, subGroup;
    
-   saisie_seq(tseq);
-   det_sgpe(tseq,&class,&sgpe);
+   RequestSequence(sequence);
+   FindHumanSubgroup(sequence, &chainType, &subGroup);
    
    return(0);
 }
 
-/***********************************************************************/
-static void saisie_seq(char *tseq)
+/************************************************************************/
+static void RequestSequence(char *sequence)
 {
-   long i;
+   int i;
    
    printf(" Enter your sequence (one letter code) : \n");
-   scanf("%s",tseq);
+   scanf("%s",sequence);
    i = 0;
-   while (tseq[i] != '\0') {
-      tseq[i] = toupper(tseq[i]);
+   while (sequence[i] != '\0') 
+   {
+      sequence[i] = toupper(sequence[i]);
       i++;
    }
 }

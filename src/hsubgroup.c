@@ -7,7 +7,7 @@
    Date:       16.06.97
    Function:   Assign human subgroups from antibody sequences in PIR file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2015
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -45,8 +45,6 @@
 
    Revision History:
    =================
-   V1.0    16.06.97  Original   By: ACRM
-   V1.1    24.08.15  Updated for new bioplib
 
 *************************************************************************/
 /* Includes
@@ -75,8 +73,8 @@ int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
 void Usage(void);
 
-/* External */
-extern void det_sgpe(char *tseq, long *class, long *sgpe);
+/* External                                                             */
+#include "sophie.h"
 
 /************************************************************************/
 /*>int main(int argc, char **argv)
@@ -85,7 +83,7 @@ extern void det_sgpe(char *tseq, long *class, long *sgpe);
    assignments for each chain.
 
    12.06.97 Original   By: ACRM
-   16.06.96 Fixed memory leak --- wasn't freeing sequence data
+   16.06.97 Fixed memory leak --- wasn't freeing sequence data
 */
 int main(int argc, char **argv)
 {
@@ -94,8 +92,8 @@ int main(int argc, char **argv)
    char infile[MAXBUFF],
         outfile[MAXBUFF],
         *seqs[MAXSEQ];
-   int  nchain, i;
-   long class, sgpe;
+   int  nchain, i,
+        class, subGroup;
    BOOL punct, error;
    
    if(ParseCmdLine(argc, argv, infile, outfile))
@@ -106,7 +104,7 @@ int main(int argc, char **argv)
          {
             for(i=0; i<nchain; i++)
             {
-               det_sgpe(seqs[i], &class, &sgpe);
+               FindHumanSubgroup(seqs[i], &class, &subGroup);
                free(seqs[i]);
             }
          }
@@ -184,11 +182,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V1.1 (c) 1997-2015, Andrew C.R. Martin, \
-UCL\n");
+   fprintf(stderr,"\nhsubgroup V1.0 (c) 1997, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
-   fprintf(stderr,"\nUsage: sophie [in.pir [out.txt]]\n");
+   fprintf(stderr,"   Used with permission\n");
+   
+   fprintf(stderr,"\nUsage: hsubgroup [in.pir [out.txt]]\n");
    fprintf(stderr,"Assigns sub-group information for antibody \
 sequences\n\n");
 }
