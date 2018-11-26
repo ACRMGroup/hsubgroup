@@ -67,11 +67,13 @@
 
 /* Includes
 */
-#include  <stdio.h>
-#include  <string.h>
-#include  <stddef.h>
-#include  <stdlib.h>
-#include  <ctype.h>
+#include <stdio.h>
+#include <string.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include "bioplib/macros.h"
+#include "bioplib/general.h"
 
 /************************************************************************/
 /* Defines and macros
@@ -83,8 +85,6 @@
 #define MAXBUFF         320  /* General purpose buffer                  */
 #define OFFSETTRUNCATION  1  /* Using offsets for Nter truncation       */
 #define OFFSETEXTENSION   2  /* Using offsets for Nter extension        */
-
-typedef float REAL;
 
 /* Used to store info on a subgroup                                     */
 typedef struct
@@ -406,7 +406,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
 -  16.06.97 Original from Sophie's code
 -  01.08.18 Complete rewrite
 */
-void FindHumanSubgroup(char *sequence, int *chainType, int *subGroup)
+void FindHumanSubgroup(FILE *fp, char *sequence, int *chainType, int *subGroup)
 {
    static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
    static int initialized = 0;
@@ -423,7 +423,14 @@ void FindHumanSubgroup(char *sequence, int *chainType, int *subGroup)
    if(!initialized)
    {
       initialized = 1;
-      InitializeAllSubgroups(subGroupInfo);
+      if(fp != NULL)
+      {
+         ReadSubgroupData(fp, subGroupInfo);
+      }
+      else
+      {
+         InitializeAllSubgroups(subGroupInfo);
+      }
    }
    
    /* For each sub-group                                                */
@@ -568,14 +575,19 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
 
 
 /************************************************************************/
-static void ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
+static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
 {
-   int  subgroupCount = 0,
-        dataNum       = 0;
+   int  subGroupCount = 0,
+        dataNum       = 0,
+        chainType     = 0,
+        chainTypeNum  = 0;
    char buffer[MAXBUFF],
+        label[MAXBUFF],
+        seq1[MAXBUFF],
+        seq2[MAXBUFF],
         *chp;
-   REAL res1[MAXREFSEQLEN],
-        res2[MAXREFSEQLEN];
+   REAL freq1[MAXREFSEQLEN],
+        freq2[MAXREFSEQLEN];
    
    while(fgets(buffer, MAXBUFF, fp))
    {
@@ -591,16 +603,33 @@ static void ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
          do
          {
             char word[MAXBUFF];
-            chp=blGetWord(chp, word);
+            chp=blGetWord(chp, word, MAXBUFF);
 
             /* Test for the end of a block */
             if((word[0] == '/') && (word[1] == '/'))
             {
                if(dataNum != 46)
                {
+                  char chainTypeLabel[16];
+                  switch(chainType)
+                  {
+                  case CHAINTYPE_HEAVY:
+                     strcpy(chainTypeLabel, "HEAVY");
+                     break;
+                  case CHAINTYPE_KAPPA:
+                     strcpy(chainTypeLabel, "KAPPA");
+                     break;
+                  case CHAINTYPE_LAMBDA:
+                     strcpy(chainTypeLabel, "LAMBDA");
+                     break;
+                  default:
+                     strcpy(chainTypeLabel, "????");
+                     break;
+                  }
+                  
                   fprintf(stderr,"Datafile invalid at %s %d\n",
-                          chainType, chainTypeNum);
-                  return(NULL);
+                          chainTypeLabel, chainTypeNum);
+                  return(FALSE);
                }
                InitSubgroupInfo(&subGroupInfo[subGroupCount++],
                                 chainType, chainTypeNum,
@@ -611,14 +640,14 @@ static void ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
                                 freq1[8],  freq1[9],  freq1[10], freq1[11], 
                                 freq1[12], freq1[13], freq1[14], freq1[15], 
                                 freq1[16], freq1[17], freq1[18], freq1[19], 
-                                freq1[20], freq1[21],
+                                freq1[20],
                                 seq2,
                                 freq2[0],  freq2[1],  freq2[2],  freq2[3], 
                                 freq2[4],  freq2[5],  freq2[6],  freq2[7], 
                                 freq2[8],  freq2[9],  freq2[10], freq2[11], 
                                 freq2[12], freq2[13], freq2[14], freq2[15], 
                                 freq2[16], freq2[17], freq2[18], freq2[19], 
-                                freq2[20], freq2[21]);
+                                freq2[20]);
             }
             
             if(dataNum == 0)
@@ -635,29 +664,39 @@ static void ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
                   chainType = CHAINTYPE_HEAVY;
                   break;
                default:
-                  return(NULL);
+                  return(FALSE);
                }
             }
-            elsif(dataNum == 1)
+            else if(dataNum == 1)
             {
+               sscanf(word, "%d", &chainTypeNum);
             }
-            elsif(dataNum == 2)
+            else if(dataNum == 2)
             {
+               strncpy(label, word, MAXBUFF);
             }
-            elsif(dataNum == 3)
+            else if(dataNum == 3)
             {
+               strncpy(seq1, word, MAXBUFF);
             }
-            elsif((dataNum >= 4) && (dataNum <= 24))
+            else if((dataNum >= 4) && (dataNum <= 24))
             {
+               sscanf(word, "%lf", &(freq1[dataNum-4]));
             }
-            elsif(dataNum == 25)
+            else if(dataNum == 25)
             {
+               strncpy(seq2, word, MAXBUFF);
             }
-            elsif((dataNum >= 26) && (dataNum <= 46))
+            else if((dataNum >= 26) && (dataNum <= 46))
             {
+               sscanf(word, "%lf", &(freq2[dataNum-26]));
             }
          } while(chp!=NULL);
-         
+      }
+   }
+   return(TRUE);
+}
+
             
       
             

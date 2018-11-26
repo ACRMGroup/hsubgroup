@@ -70,7 +70,8 @@
 /* Prototypes
 */
 int main(int argc, char **argv);
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile);
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+   char *dataFile);
 void Usage(void);
 
 /* External                                                             */
@@ -84,19 +85,23 @@ void Usage(void);
 
    12.06.97 Original   By: ACRM
    16.06.97 Fixed memory leak --- wasn't freeing sequence data
+   26.11.18 Added data file option
 */
 int main(int argc, char **argv)
 {
-   FILE *in  = stdin,
-        *out = stdout;
+   FILE *in     = stdin,
+        *out    = stdout,
+        *fpData = NULL;
    char infile[MAXBUFF],
         outfile[MAXBUFF],
+        dataFile[MAXBUFF],
         *seqs[MAXSEQ];
    int  nchain, i,
         class, subGroup;
    BOOL punct, error;
-   
-   if(ParseCmdLine(argc, argv, infile, outfile))
+
+   dataFile[0] = '\0';
+   if(ParseCmdLine(argc, argv, infile, outfile, dataFile))
    {
       if(blOpenStdFiles(infile, outfile, &in, &out))
       {
@@ -104,7 +109,7 @@ int main(int argc, char **argv)
          {
             for(i=0; i<nchain; i++)
             {
-               FindHumanSubgroup(seqs[i], &class, &subGroup);
+               FindHumanSubgroup(FILE *fpData, seqs[i], &class, &subGroup);
                free(seqs[i]);
             }
          }
@@ -119,24 +124,27 @@ int main(int argc, char **argv)
 }
 
 /************************************************************************/
-/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+/*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                     char *dataFile)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
    Output:  char   *infile      Input file (or blank string)
             char   *outfile     Output file (or blank string)
+            char   *dataFile    Optional data file (or blank string)
    Returns: BOOL                Success?
 
    Parse the command line
    
    12.06.97 Original    By: ACRM
 */
-BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
+BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
+                  char *dataFile)
 {
    argc--;
    argv++;
 
-   infile[0] = outfile[0] = '\0';
+   infile[0] = outfile[0] = dataFile[0] = '\0';
    
    while(argc)
    {
@@ -144,6 +152,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
       {
          switch(argv[0][1])
          {
+         case 'd':
+            argc--; argv++;
+            if(!argc)
+               return(FALSE);
+            strcpy(dataFile, argv[0];
+            break;
          default:
             return(FALSE);
             break;
@@ -179,15 +193,16 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile)
    Prints a usage message
 
    12.06.97 Original    By: ACRM
+   23.11.18 V2.0
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V1.0 (c) 1997, Andrew C.R. Martin, UCL\n");
+   fprintf(stderr,"\nhsubgroup V2.0 (c) 2018, Andrew C.R. Martin, UCL\n");
    fprintf(stderr,"Subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
    fprintf(stderr,"   Used with permission\n");
    
-   fprintf(stderr,"\nUsage: hsubgroup [in.pir [out.txt]]\n");
+   fprintf(stderr,"\nUsage: hsubgroup [-d datafile] [in.pir [out.txt]]\n");
    fprintf(stderr,"Assigns sub-group information for antibody \
 sequences\n\n");
 }
