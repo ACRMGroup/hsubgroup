@@ -80,7 +80,7 @@
 #define MAXREFSEQLEN     21  /* The length of the reference sequences   */
 #define MAXTRUNCATION     6  /* Amount we can Nter truncate a sequence  */
 #define MAXEXTENSION     20  /* Amount we can Nter extend a sequence    */
-#define MAXBUFF          80  /* General purpose buffer                  */
+#define MAXBUFF         320  /* General purpose buffer                  */
 #define OFFSETTRUNCATION  1  /* Using offsets for Nter truncation       */
 #define OFFSETEXTENSION   2  /* Using offsets for Nter extension        */
 
@@ -565,6 +565,105 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
 
    return((score*100.0)/scoreMax);
 }
+
+
+/************************************************************************/
+static void ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
+{
+   int  subgroupCount = 0,
+        dataNum       = 0;
+   char buffer[MAXBUFF],
+        *chp;
+   REAL res1[MAXREFSEQLEN],
+        res2[MAXREFSEQLEN];
+   
+   while(fgets(buffer, MAXBUFF, fp))
+   {
+      TERMINATE(buffer);
+      KILLTRAILSPACES(buffer);
+      KILLLEADSPACES(chp, buffer);
+      if(strlen(chp))
+      {
+         if(chp[0] == '>')
+         {
+            dataNum = 0;
+         }
+         do
+         {
+            char word[MAXBUFF];
+            chp=blGetWord(chp, word);
+
+            /* Test for the end of a block */
+            if((word[0] == '/') && (word[1] == '/'))
+            {
+               if(dataNum != 46)
+               {
+                  fprintf(stderr,"Datafile invalid at %s %d\n",
+                          chainType, chainTypeNum);
+                  return(NULL);
+               }
+               InitSubgroupInfo(&subGroupInfo[subGroupCount++],
+                                chainType, chainTypeNum,
+                                label,
+                                seq1,
+                                freq1[0],  freq1[1],  freq1[2],  freq1[3], 
+                                freq1[4],  freq1[5],  freq1[6],  freq1[7], 
+                                freq1[8],  freq1[9],  freq1[10], freq1[11], 
+                                freq1[12], freq1[13], freq1[14], freq1[15], 
+                                freq1[16], freq1[17], freq1[18], freq1[19], 
+                                freq1[20], freq1[21],
+                                seq2,
+                                freq2[0],  freq2[1],  freq2[2],  freq2[3], 
+                                freq2[4],  freq2[5],  freq2[6],  freq2[7], 
+                                freq2[8],  freq2[9],  freq2[10], freq2[11], 
+                                freq2[12], freq2[13], freq2[14], freq2[15], 
+                                freq2[16], freq2[17], freq2[18], freq2[19], 
+                                freq2[20], freq2[21]);
+            }
+            
+            if(dataNum == 0)
+            {
+               switch(word[0])
+               {
+               case 'L':
+                  chainType = CHAINTYPE_LAMBDA;
+                  break;
+               case 'K':
+                  chainType = CHAINTYPE_KAPPA;
+                  break;
+               case 'H':
+                  chainType = CHAINTYPE_HEAVY;
+                  break;
+               default:
+                  return(NULL);
+               }
+            }
+            elsif(dataNum == 1)
+            {
+            }
+            elsif(dataNum == 2)
+            {
+            }
+            elsif(dataNum == 3)
+            {
+            }
+            elsif((dataNum >= 4) && (dataNum <= 24))
+            {
+            }
+            elsif(dataNum == 25)
+            {
+            }
+            elsif((dataNum >= 26) && (dataNum <= 46))
+            {
+            }
+         } while(chp!=NULL);
+         
+            
+      
+            
+      
+
+
 
 
 #ifdef DEMO
