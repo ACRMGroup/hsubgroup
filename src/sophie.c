@@ -794,6 +794,7 @@ int main(void)
    return(0);
 }
 
+
 /************************************************************************/
 static void RequestSequence(char *sequence)
 {

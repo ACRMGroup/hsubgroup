@@ -4,7 +4,8 @@ LINK2 =
 CC    = cc
 
 OFILES = hsubgroup.o sophie.o
-LFILES = bioplib/ReadPIR.o bioplib/OpenStdFiles.o
+LFILES = bioplib/ReadPIR.o bioplib/OpenStdFiles.o bioplib/GetWord.o \
+ bioplib/array2.o
 
 hsubgroup : $(OFILES) $(LFILES)
 	$(CC) -o hsubgroup $(OFILES) $(LFILES) -lm $(LINK2)
