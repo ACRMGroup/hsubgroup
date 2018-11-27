@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       sophie.c
    
-   Version:    V2.0
-   Date:       01.08.18
+   Version:    V2.1
+   Date:       27.11.18
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2018
@@ -62,6 +62,8 @@
    =================
    V1.0  16.06.97   Original
    V2.0  01.08.18   Complete rewrite
+   V2.1  27.11.18   Allows data to be read from a file and records best
+                    and second-best scores
 
 *************************************************************************/
 
@@ -100,6 +102,12 @@ typedef struct
 
 
 /************************************************************************/
+/* Globals
+*/
+static BOOL sVerbose = FALSE;
+
+
+/************************************************************************/
 /* Prototypes
 */
 #include "sophie.h"
@@ -123,6 +131,7 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
                              REAL sv16, REAL sv17, REAL sv18, REAL sv19,
                              REAL sv20);
 static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo);
+static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo);
 
 
 /************************************************************************/
@@ -232,6 +241,7 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
    subGroupInfo->secondScores[19] = sv19;
    subGroupInfo->secondScores[20] = sv20;
 }
+
 
 /************************************************************************/
 /*>static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
@@ -392,100 +402,6 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
 
 
 /************************************************************************/
-/*>void FindHumanSubgroup(char *sequence, int *chainType, int *subGroup)
-   ---------------------------------------------------------------------
-*//**
-   \param[in]   sequence     - the sequence of interest
-   \param[out]  chainType    - chain type: CHAINTYPE_HEAVY
-                                           CHAINTYPE_KAPPA
-                                           CHAINTYPE_LAMBDA
-   \param[out]  subGroup     - subgroup
-
-   Assigns the subgroup information for a sequence
-
--  16.06.97 Original from Sophie's code
--  01.08.18 Complete rewrite
-*/
-void FindHumanSubgroup(FILE *fp, char *sequence, int *chainType, int *subGroup)
-{
-   static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
-   static int initialized = 0;
-   int  bestSubGroupCount = -1;
-   REAL val               = 0.0,
-        maxVal            = 0.0;
-   int  subGroupCount,
-        offset;
-
-#ifdef DEBUG
-   int  bestOffset = 0;
-#endif
-   
-   if(!initialized)
-   {
-      initialized = 1;
-      if(fp != NULL)
-      {
-         ReadSubgroupData(fp, subGroupInfo);
-      }
-      else
-      {
-         InitializeAllSubgroups(subGroupInfo);
-      }
-   }
-   
-   /* For each sub-group                                                */
-   for(subGroupCount = 0; subGroupCount < MAXSUBTYPES; subGroupCount++) 
-   { 
-      /* Shift along the reference sequence to account for N-terminal
-         truncation of the test sequence
-      */
-      for(offset = 0; offset < MAXTRUNCATION; offset++)
-      {
-         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                         offset, OFFSETTRUNCATION);
-         if(val > maxVal) 
-         {
-            maxVal            = val;
-            bestSubGroupCount = subGroupCount;
-#ifdef DEBUG
-            bestOffset        = offset;
-#endif
-         }
-      }
-
-      /* Shift along the test sequence to account for N-terminal 
-         extension of the test sequence
-      */
-      for(offset = 0; offset < MAXEXTENSION; offset++)
-      {
-         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                         offset, OFFSETEXTENSION);
-         if(val > maxVal) 
-         {
-            maxVal            = val;
-            bestSubGroupCount = subGroupCount;
-#ifdef DEBUG
-            bestOffset        = -offset;
-#endif
-         }
-      }
-   }
-
-   /* Print the winning name                                            */
-   printf("%s\n",subGroupInfo[bestSubGroupCount].name);
-#ifdef DEBUG
-   printf("Offset: %d (%s)\n", bestOffset, 
-          ((bestOffset<0)?"extension":"truncation"));
-#endif
-
-
-   /* Set the chain type and sub group                                  */
-   *chainType = subGroupInfo[bestSubGroupCount].chainType;
-   *subGroup  = subGroupInfo[bestSubGroupCount].subGroup;
-}
-
-
-/************************************************************************/
 /*static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
                         int offset, int offsetType)
   ------------------------------------------------------------
@@ -575,6 +491,27 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
 
 
 /************************************************************************/
+/*>static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
+   ------------------------------------------------------------------
+*//**
+   \param[in]    *fp            File pointer
+   \param[out]   *subGroupInfo  The sub group information
+   \return                      Success
+
+   Reads the subgroup information file which contains records of the
+   form
+
+>KAPPA,  1,
+"Human Kappa Light chain subgroup I",
+XDIQMTQSPSSLSASVGDRVT,
+0.016,0.748,0.759,0.710,0.721,0.819,0.803,0.819,0.814,0.776,0.579,0.841,0.879,0.672,0.798,0.699,0.819,0.639,0.743,0.683,0.803,
+ZBVZLMZAATTVPLTPRESAI,
+0.005,0.022,0.016,0.022,0.087,0.005,0.038,0.005,0.005,0.011,0.289,0.033,0.022,0.093,0.022,0.120,0.005,0.109,0.027,0.114,0.032
+
+- 27.11.18 Original   By: ACRM
+//
+
+*/
 static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
 {
    int  subGroupCount = 0,
@@ -591,15 +528,19 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
    
    while(fgets(buffer, MAXBUFF, fp))
    {
-      TERMINATE(buffer);
-      KILLTRAILSPACES(buffer);
-      KILLLEADSPACES(chp, buffer);
-      if(strlen(chp))
+      TERMINATE(buffer);            /* Terminate normally               */
+      TERMAT(buffer, '#');          /* Remove comments                  */
+      KILLTRAILSPACES(buffer);      /* Trailing spaces                  */
+      KILLLEADSPACES(chp, buffer);  /* Leading spaces                   */
+      if(strlen(chp))               /* Anything left?                   */
       {
-         if(chp[0] == '>')
+         if(chp[0] == '>')          /* Start of new entry               */
          {
             dataNum = 0;
+            chp++;
+            KILLLEADSPACES(chp, chp);
          }
+         
          do
          {
             char word[MAXBUFF];
@@ -608,7 +549,7 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
             /* Test for the end of a block */
             if((word[0] == '/') && (word[1] == '/'))
             {
-               if(dataNum != 46)
+               if(dataNum != 47)
                {
                   char chainTypeLabel[16];
                   switch(chainType)
@@ -627,27 +568,30 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
                      break;
                   }
                   
-                  fprintf(stderr,"Datafile invalid at %s %d\n",
-                          chainTypeLabel, chainTypeNum);
+                  fprintf(stderr,"Datafile invalid at %s %d. \
+Got %d fields instead of 46\n",
+                          chainTypeLabel, chainTypeNum, dataNum);
                   return(FALSE);
                }
                InitSubgroupInfo(&subGroupInfo[subGroupCount++],
                                 chainType, chainTypeNum,
                                 label,
                                 seq1,
-                                freq1[0],  freq1[1],  freq1[2],  freq1[3], 
-                                freq1[4],  freq1[5],  freq1[6],  freq1[7], 
-                                freq1[8],  freq1[9],  freq1[10], freq1[11], 
-                                freq1[12], freq1[13], freq1[14], freq1[15], 
-                                freq1[16], freq1[17], freq1[18], freq1[19], 
-                                freq1[20],
+                                freq1[0],  freq1[1],  freq1[2],
+                                freq1[3],  freq1[4],  freq1[5],
+                                freq1[6],  freq1[7],  freq1[8],
+                                freq1[9],  freq1[10], freq1[11], 
+                                freq1[12], freq1[13], freq1[14],
+                                freq1[15], freq1[16], freq1[17],
+                                freq1[18], freq1[19], freq1[20],
                                 seq2,
-                                freq2[0],  freq2[1],  freq2[2],  freq2[3], 
-                                freq2[4],  freq2[5],  freq2[6],  freq2[7], 
-                                freq2[8],  freq2[9],  freq2[10], freq2[11], 
-                                freq2[12], freq2[13], freq2[14], freq2[15], 
-                                freq2[16], freq2[17], freq2[18], freq2[19], 
-                                freq2[20]);
+                                freq2[0],  freq2[1],  freq2[2],
+                                freq2[3],  freq2[4],  freq2[5],
+                                freq2[6],  freq2[7],  freq2[8],
+                                freq2[9],  freq2[10], freq2[11], 
+                                freq2[12], freq2[13], freq2[14],
+                                freq2[15], freq2[16], freq2[17],
+                                freq2[18], freq2[19], freq2[20]);
             }
             
             if(dataNum == 0)
@@ -691,18 +635,145 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
             {
                sscanf(word, "%lf", &(freq2[dataNum-26]));
             }
+            
+            dataNum++;
          } while(chp!=NULL);
       }
    }
    return(TRUE);
 }
 
-            
-      
-            
-      
+
+/************************************************************************/
+/*>void FindSubgroupSetVerbose(BOOL verbose)
+   -----------------------------------------
+*//*
+   \param[in]    verbose    Verbose setting
+
+   Sets the static 'verbose' variable
+
+-  27.11.18  Original   By: ACRM
+*/
+void FindSubgroupSetVerbose(BOOL verbose)
+{
+   sVerbose = verbose;
+}
 
 
+/************************************************************************/
+/*>BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType, 
+                          int *subGroup)
+   ----------------------------------------------------------------
+*//**
+   \param[in]   fp           - file of residue subgroup specifications
+                               (NULL - use default hardcoded values)
+   \param[in]   sequence     - the sequence of interest
+   \param[out]  chainType    - chain type: CHAINTYPE_HEAVY
+                                           CHAINTYPE_KAPPA
+                                           CHAINTYPE_LAMBDA
+   \param[out]  subGroup     - subgroup
+   \return                   - Success in reading data file
+
+   Assigns the subgroup information for a sequence
+
+-  16.06.97 Original from Sophie's code
+-  01.08.18 Complete rewrite
+-  27.11.18 Now returns BOOL and can read file of residue frequencies
+            Also deals with verbose printing
+*/
+BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
+                       int *subGroup)
+{
+   static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
+   static int initialized = 0;
+   int  bestSubGroupCount = -1;
+   REAL val               = 0.0,
+        maxVal            = 0.0,
+        secondMaxVal      = 0.0;
+   int  subGroupCount,
+        offset;
+
+#ifdef DEBUG
+   int  bestOffset = 0;
+#endif
+   
+   if(!initialized)
+   {
+      initialized = 1;
+      if(fp != NULL)
+      {
+         if(!ReadSubgroupData(fp, subGroupInfo))
+            return(FALSE);
+      }
+      else
+      {
+         InitializeAllSubgroups(subGroupInfo);
+      }
+   }
+   
+   /* For each sub-group                                                */
+   for(subGroupCount = 0; subGroupCount < MAXSUBTYPES; subGroupCount++) 
+   { 
+      /* Shift along the reference sequence to account for N-terminal
+         truncation of the test sequence
+      */
+      for(offset = 0; offset < MAXTRUNCATION; offset++)
+      {
+         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                         offset, OFFSETTRUNCATION);
+         if(val > maxVal) 
+         {
+            maxVal            = val;
+            bestSubGroupCount = subGroupCount;
+#ifdef DEBUG
+            bestOffset        = offset;
+#endif
+         }
+         else if((val < maxVal) && (val > secondMaxVal))
+         {
+            secondMaxVal      = val;
+         }
+         
+      }
+
+      /* Shift along the test sequence to account for N-terminal 
+         extension of the test sequence
+      */
+      for(offset = 0; offset < MAXEXTENSION; offset++)
+      {
+         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                         offset, OFFSETEXTENSION);
+         if(val > maxVal) 
+         {
+            maxVal            = val;
+            bestSubGroupCount = subGroupCount;
+#ifdef DEBUG
+            bestOffset        = -offset;
+#endif
+         }
+         else if((val < maxVal) && (val > secondMaxVal))
+         {
+            secondMaxVal      = val;
+         }
+      }
+   }
+
+   /* Print the winning name                                            */
+   printf("%s",subGroupInfo[bestSubGroupCount].name);
+   if(sVerbose)
+      printf(" [%f %f]", maxVal, secondMaxVal);
+   printf("\n");
+#ifdef DEBUG
+   printf("Offset: %d (%s)\n", bestOffset, 
+          ((bestOffset<0)?"extension":"truncation"));
+#endif
+
+   /* Set the chain type and sub group                                  */
+   *chainType = subGroupInfo[bestSubGroupCount].chainType;
+   *subGroup  = subGroupInfo[bestSubGroupCount].subGroup;
+
+   return(TRUE);
+}
 
 
 #ifdef DEMO

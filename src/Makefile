@@ -1,4 +1,5 @@
-COPT	= -ansi -Wall -pedantic -O3
+#COPT	= -ansi -Wall -pedantic -O3
+COPT	= -ansi -Wall -pedantic -g
 LINK1	= 
 LINK2	=
 CC	= cc -I$(HOME)/include -L$(HOME)/lib
