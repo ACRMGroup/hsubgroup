@@ -8,7 +8,7 @@ EXE	= hsubgroup
 OFILES	= hsubgroup.o sophie.o
 
 $(EXE) : $(OFILES) $(LFILES)
-	$(CC) -o $(EXE) $(OFILES) $(LFILES) -lbiop -lgen -lm -lxml2
+	$(CC) $(COPT) -o $(EXE) $(OFILES) $(LFILES) -lbiop -lgen -lm -lxml2
 
 .c.o :
 	$(CC) $(COPT) -o $@ -c $<

@@ -3,11 +3,11 @@
    Program:    hsubgroup
    File:       hsubgroup.c
    
-   Version:    V2.1
-   Date:       27.08.18
+   Version:    V2.2
+   Date:       08.01.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2018
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -49,6 +49,7 @@
    V2.0  01.08.18   Complete rewrite of underlying code
    V2.1  27.08.18   Allows data to be read from a file and records best
                     and second-best scores
+   V2.2  08.01.19   Fixes problem with DOS files
 
 *************************************************************************/
 /* Includes
@@ -226,7 +227,7 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V2.1 (c) 1997-2018, Andrew C.R. Martin, \
+   fprintf(stderr,"\nhsubgroup V2.2 (c) 1997-2019, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Original subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");

@@ -3,11 +3,11 @@
    Program:    hsubgroup
    File:       sophie.c
    
-   Version:    V2.1
-   Date:       27.11.18
+   Version:    V2.2
+   Date:       08.01.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
-   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2018
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
    Author:     Dr. Andrew C. R. Martin
    Address:    Biomolecular Structure & Modelling Unit,
                Department of Biochemistry & Molecular Biology,
@@ -64,6 +64,9 @@
    V2.0  01.08.18   Complete rewrite
    V2.1  27.11.18   Allows data to be read from a file and records best
                     and second-best scores
+   V2.2  08.01.19   Fixed problem with DOS data files and corrected 
+                    code to deal with data files having other than 13
+                    subtypes!
 
 *************************************************************************/
 
@@ -80,7 +83,7 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXSUBTYPES      13  /* The number of subtypes                  */
+#define MAXSUBTYPES     100 /* The number of subtypes                  */
 #define MAXREFSEQLEN     21  /* The length of the reference sequences   */
 #define MAXTRUNCATION     6  /* Amount we can Nter truncate a sequence  */
 #define MAXEXTENSION     20  /* Amount we can Nter extend a sequence    */
@@ -130,8 +133,8 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
                              REAL sv12, REAL sv13, REAL sv14, REAL sv15,
                              REAL sv16, REAL sv17, REAL sv18, REAL sv19,
                              REAL sv20);
-static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo);
-static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo);
+static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo);
+static int ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo);
 
 
 /************************************************************************/
@@ -244,8 +247,8 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
 
 
 /************************************************************************/
-/*>static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
-   --------------------------------------------------------------
+/*>static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
+   -------------------------------------------------------------
 *//**
    \param[out]  *subGroupInfo   Array of SUBGROUPINFO structures to
                                 be initialized
@@ -253,9 +256,12 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
    Initializes all the subgroup information
 
 -  01.08.18  Original   By: ACRM
+-  08.01.19  Now returns the number of subgroups done
 */
-static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
+static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
 {
+   int nSubGroups = 0;
+   
    InitSubgroupInfo(&subGroupInfo[0],  CHAINTYPE_KAPPA,  1, 
                     "Human Kappa Light chain subgroup I",    
                     "XDIQMTQSPSSLSASVGDRVT", 
@@ -266,6 +272,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.005,0.022,0.016,0.022,0.087,0.005,0.038,
                     0.005,0.005,0.011,0.289,0.033,0.022,0.093,
                     0.022,0.120,0.005,0.109,0.027,0.114,0.032);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[1],  CHAINTYPE_KAPPA,  2, 
                     "Human Kappa Light chain subgroup II",   
@@ -277,6 +284,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.019,0.019,0.039,0.000,0.000,0.235,
                     0.000,0.000,0.000,0.039,0.235,0.019,0.000,
                     0.078,0.039,0.274,0.000,0.000,0.000,0.000);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[2],  CHAINTYPE_KAPPA,  3, 
                     "Human Kappa Light chain subgroup III",  
@@ -288,6 +296,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.039,0.013,0.006,0.198,0.006,0.039,0.006,
                     0.000,0.285,0.013,0.006,0.006,0.165,0.019,
                     0.006,0.000,0.047,0.023,0.094,0.023,0.007);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[3],  CHAINTYPE_KAPPA,  4, 
                     "Human Kappa Light chain subgroup IV",   
@@ -299,6 +308,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.055,0.000,0.111,0.055,0.000,0.000,
                     0.000,0.166,0.111,0.000,0.000,0.000,0.000,
                     0.166,0.000,0.222,0.111,0.000,0.000,0.111);
+   nSubGroups++;
    
    InitSubgroupInfo(&subGroupInfo[4],  CHAINTYPE_LAMBDA, 1, 
                     "Human Lambda Light chain subgroup I",   
@@ -310,6 +320,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.292,0.024,0.024,0.000,0.000,0.024,0.000,
                     0.024,0.000,0.390,0.000,0.512,0.390,0.024,
                     0.000,0.024,0.268,0.170,0.048,0.024,0.024);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[5],  CHAINTYPE_LAMBDA, 2, 
                     "Human Lambda Light chain subgroup II",  
@@ -321,6 +332,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.184,0.158,0.131,0.026,0.052,0.026,0.052,
                     0.289,0.026,0.052,0.026,0.184,0.026,0.184,
                     0.000,0.131,0.052,0.368,0.157,0.157,0.184);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[6],  CHAINTYPE_LAMBDA, 3, 
                     "Human Lambda Light chain subgroup III", 
@@ -332,6 +344,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.032,0.032,0.209,0.048,0.032,0.064,
                     0.048,0.016,0.016,0.08,0.016,0.032,0.193,
                     0.048,0.016,0.048,0.016,0.016,0.290,0.016);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[7],  CHAINTYPE_LAMBDA, 4, 
                     "Human Lambda Light chain subgroup IV",  
@@ -343,6 +356,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.111,0.000,0.111,0.000,0.333,0.111,
                     0.333,0.000,0.111,0.111,0.222,0.333,0.000,
                     0.222,0.111,0.222,0.111,0.000,0.111,0.000);
+   nSubGroups++;
    
    InitSubgroupInfo(&subGroupInfo[8],  CHAINTYPE_LAMBDA, 5, 
                     "Human Lambda Light chain subgroup V",   
@@ -354,6 +368,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.000,0.000,0.000,0.000,0.000,0.000,
                     0.000,0.000,0.000,0.000,0.000,0.000,0.333,
                     0.000,0.000,0.000,0.000,0.000,0.000,0.000);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[9],  CHAINTYPE_LAMBDA, 6, 
                     "Human Lambda Light chain subgroup VI",  
@@ -365,6 +380,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.357,0.142,0.071,0.000,0.071,0.071,0.000,
                     0.071,0.000,0.071,0.000,0.071,0.000,0.000,
                     0.071,0.071,0.071,0.071,0.142,0.071,0.000);
+   nSubGroups++;
    
    InitSubgroupInfo(&subGroupInfo[10], CHAINTYPE_HEAVY,  1, 
                     "Human Heavy chain subgroup I",          
@@ -376,6 +392,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.200,0.017,0.026,0.008,0.034,0.130,
                     0.000,0.017,0.026,0.017,0.043,0.052,0.008,
                     0.008,0.008,0.182,0.008,0.173,0.104,0.200);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[11], CHAINTYPE_HEAVY,  2, 
                     "Human Heavy chain subgroup II",         
@@ -387,6 +404,7 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.099,0.128,0.099,0.009,0.059,0.188,0.059,
                     0.009,0.049,0.049,0.000,0.059,0.089,0.009,
                     0.099,0.267,0.019,0.009,0.089,0.009,0.019);
+   nSubGroups++;
 
    InitSubgroupInfo(&subGroupInfo[12], CHAINTYPE_HEAVY,  3, 
                     "Human Heavy chain subgroup III",        
@@ -398,6 +416,9 @@ static void InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                     0.000,0.069,0.027,0.032,0.009,0.199,0.046,
                     0.031,0.007,0.004,0.092,0.115,0.041,0.115,
                     0.009,0.009,0.106,0.009,0.004,0.069,0.046);
+   nSubGroups++;
+
+   return(nSubGroups);
 }
 
 
@@ -491,12 +512,12 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
 
 
 /************************************************************************/
-/*>static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
-   ------------------------------------------------------------------
+/*>static int ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
+   -----------------------------------------------------------------
 *//**
    \param[in]    *fp            File pointer
    \param[out]   *subGroupInfo  The sub group information
-   \return                      Success
+   \return                      Number of subgroups (0 for error)
 
    Reads the subgroup information file which contains records of the
    form
@@ -512,12 +533,13 @@ ZBVZLMZAATTVPLTPRESAI,
 //
 
 */
-static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
+static int ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
 {
    int  subGroupCount = 0,
         dataNum       = 0,
         chainType     = 0,
-        chainTypeNum  = 0;
+        chainTypeNum  = 0,
+        nSubGroups    = 0;
    char buffer[MAXBUFF],
         label[MAXBUFF],
         seq1[MAXBUFF],
@@ -529,6 +551,7 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
    while(fgets(buffer, MAXBUFF, fp))
    {
       TERMINATE(buffer);            /* Terminate normally               */
+      TERMAT(buffer, '\r');         /* Terminate at DOS cursor return   */
       TERMAT(buffer, '#');          /* Remove comments                  */
       KILLTRAILSPACES(buffer);      /* Trailing spaces                  */
       KILLLEADSPACES(chp, buffer);  /* Leading spaces                   */
@@ -571,7 +594,7 @@ static BOOL ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo)
                   fprintf(stderr,"Datafile invalid at %s %d. \
 Got %d fields instead of 46\n",
                           chainTypeLabel, chainTypeNum, dataNum);
-                  return(FALSE);
+                  return(0);
                }
                InitSubgroupInfo(&subGroupInfo[subGroupCount++],
                                 chainType, chainTypeNum,
@@ -592,6 +615,12 @@ Got %d fields instead of 46\n",
                                 freq2[12], freq2[13], freq2[14],
                                 freq2[15], freq2[16], freq2[17],
                                 freq2[18], freq2[19], freq2[20]);
+               if(++nSubGroups > MAXSUBTYPES)
+               {
+                  fprintf(stderr, "Data file contains too many types. \
+Increase MAXSUBTYPES.\n");
+                  exit(1);
+               }
             }
             
             if(dataNum == 0)
@@ -608,7 +637,7 @@ Got %d fields instead of 46\n",
                   chainType = CHAINTYPE_HEAVY;
                   break;
                default:
-                  return(FALSE);
+                  return(0);
                }
             }
             else if(dataNum == 1)
@@ -640,7 +669,7 @@ Got %d fields instead of 46\n",
          } while(chp!=NULL);
       }
    }
-   return(TRUE);
+   return(nSubGroups);
 }
 
 
@@ -685,11 +714,12 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
                        int *subGroup)
 {
    static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
-   static int initialized = 0;
-   int  bestSubGroupCount = -1;
-   REAL val               = 0.0,
-        maxVal            = 0.0,
-        secondMaxVal      = 0.0;
+   static int sInitialized = 0,
+              sNSubGroups  = 0;
+   int  bestSubGroupCount  = -1;
+   REAL val                = 0.0,
+        maxVal             = 0.0,
+        secondMaxVal       = 0.0;
    int  subGroupCount,
         offset;
 
@@ -697,22 +727,23 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
    int  bestOffset = 0;
 #endif
    
-   if(!initialized)
+   if(!sInitialized)
    {
-      initialized = 1;
+      sInitialized = 1;
       if(fp != NULL)
       {
-         if(!ReadSubgroupData(fp, subGroupInfo))
+         sNSubGroups = ReadSubgroupData(fp, subGroupInfo);
+         if(!sNSubGroups)
             return(FALSE);
       }
       else
       {
-         InitializeAllSubgroups(subGroupInfo);
+         sNSubGroups = InitializeAllSubgroups(subGroupInfo);
       }
    }
    
    /* For each sub-group                                                */
-   for(subGroupCount = 0; subGroupCount < MAXSUBTYPES; subGroupCount++) 
+   for(subGroupCount = 0; subGroupCount < sNSubGroups; subGroupCount++) 
    { 
       /* Shift along the reference sequence to account for N-terminal
          truncation of the test sequence
