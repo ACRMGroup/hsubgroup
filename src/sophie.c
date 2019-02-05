@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       sophie.c
    
-   Version:    V2.2
-   Date:       08.01.19
+   Version:    V2.3
+   Date:       05.02.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -67,6 +67,7 @@
    V2.2  08.01.19   Fixed problem with DOS data files and corrected 
                     code to deal with data files having other than 13
                     subtypes!
+   V2.3  05.02.19   Added info to verbose output on the second best match
 
 *************************************************************************/
 
@@ -83,7 +84,7 @@
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXSUBTYPES     100 /* The number of subtypes                  */
+#define MAXSUBTYPES     100  /* The max number of subtypes              */
 #define MAXREFSEQLEN     21  /* The length of the reference sequences   */
 #define MAXTRUNCATION     6  /* Amount we can Nter truncate a sequence  */
 #define MAXEXTENSION     20  /* Amount we can Nter extend a sequence    */
@@ -714,17 +715,17 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
                        int *subGroup)
 {
    static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
-   static int sInitialized = 0,
-              sNSubGroups  = 0;
-   int  bestSubGroupCount  = -1;
-   REAL val                = 0.0,
-        maxVal             = 0.0,
-        secondMaxVal       = 0.0;
-   int  subGroupCount,
-        offset;
-
+   static int          sInitialized            = 0,
+                       sNSubGroups             = 0;
+   int                 bestSubGroupCount       = -1,
+                       secondBestSubGroupCount = -1;
+   REAL                val                     = 0.0,
+                       maxVal                  = 0.0,
+                       secondMaxVal            = 0.0;
+   int                 subGroupCount,
+                       offset;
 #ifdef DEBUG
-   int  bestOffset = 0;
+   int                 bestOffset              = 0;
 #endif
    
    if(!sInitialized)
@@ -762,7 +763,8 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
          }
          else if((val < maxVal) && (val > secondMaxVal))
          {
-            secondMaxVal      = val;
+            secondMaxVal            = val;
+            secondBestSubGroupCount = subGroupCount;
          }
          
       }
@@ -784,7 +786,8 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
          }
          else if((val < maxVal) && (val > secondMaxVal))
          {
-            secondMaxVal      = val;
+            secondMaxVal            = val;
+            secondBestSubGroupCount = subGroupCount;
          }
       }
    }
@@ -792,7 +795,10 @@ BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
    /* Print the winning name                                            */
    printf("%s",subGroupInfo[bestSubGroupCount].name);
    if(sVerbose)
-      printf(" [%f %f]", maxVal, secondMaxVal);
+   {
+      printf(" [%f %f] ", maxVal, secondMaxVal);
+      printf("(%s)",subGroupInfo[secondBestSubGroupCount].name);
+   }
    printf("\n");
 #ifdef DEBUG
    printf("Offset: %d (%s)\n", bestOffset, 

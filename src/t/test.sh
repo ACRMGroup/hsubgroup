@@ -1,5 +1,5 @@
 #!/bin/bash
-
+datafile=../../data/human.dat
 #set -o errexit
 set -o nounset
 set -o pipefail
@@ -19,7 +19,7 @@ fi
 
 rm -f ./test.out
 
-../hsubgroup -d ../frequencies.dat ./test.pir > test.out
+../hsubgroup -d $datafile ./test.pir > test.out
 
 diff -w test.out.compare test.out
 

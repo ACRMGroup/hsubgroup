@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       hsubgroup.c
    
-   Version:    V2.2
-   Date:       08.01.19
+   Version:    V2.3
+   Date:       05.02.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -50,6 +50,7 @@
    V2.1  27.08.18   Allows data to be read from a file and records best
                     and second-best scores
    V2.2  08.01.19   Fixes problem with DOS files
+   V2.3  05.02.19   Added info to verbose output on the second best match
 
 *************************************************************************/
 /* Includes
@@ -224,10 +225,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
 
    12.06.97 Original    By: ACRM
    27.11.18 V2.1
+   08.01.19 V2.2
+   05.02.19 V2.3
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V2.2 (c) 1997-2019, Andrew C.R. Martin, \
+   fprintf(stderr,"\nhsubgroup V2.3 (c) 1997-2019, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Original subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
@@ -236,8 +239,8 @@ Necker Entants Malade, Paris\n");
    fprintf(stderr,"\nUsage: hsubgroup [-d datafile][-v] [in.pir \
 [out.txt]]\n");
    fprintf(stderr,"       -d Specify data file\n");
-   fprintf(stderr,"       -v Verbose: shows best and 2nd best scores\n");
-   
+   fprintf(stderr,"       -v Verbose - shows best and 2nd best scores\n");
+   fprintf(stderr,"          and the second best match\n");
    fprintf(stderr,"\nAssigns sub-group information for antibody \
 sequences\n\n");
 }
