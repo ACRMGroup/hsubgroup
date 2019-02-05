@@ -74,7 +74,7 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *dataFile, BOOL *verbose);
+                  char *dataFile, BOOL *verbose, BOOL *fullMatrix);
 void Usage(void);
 
 /* External                                                             */
@@ -102,10 +102,11 @@ int main(int argc, char **argv)
         *seqs[MAXSEQ];
    int  nchain, i,
         class, subGroup;
-   BOOL punct, error, verbose;
+   BOOL punct, error, verbose, fullMatrix;
 
    dataFile[0] = '\0';
-   if(ParseCmdLine(argc, argv, infile, outfile, dataFile, &verbose))
+   if(ParseCmdLine(argc, argv, infile, outfile, dataFile, &verbose,
+                   &fullMatrix))
    {
       FindSubgroupSetVerbose(verbose);
       
@@ -126,7 +127,7 @@ file (%s)\n", dataFile);
          {
             for(i=0; i<nchain; i++)
             {
-               BOOL ok = FindHumanSubgroup(fpData, seqs[i], &class,
+               BOOL ok = FindHumanSubgroup(fpData, fullMatrix, seqs[i], &class,
                                            &subGroup);
                free(seqs[i]);
                if(!ok)
@@ -149,7 +150,7 @@ from data file (%s)\n", dataFile);
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     char *dataFile, BOOL *verbose)
+                     char *dataFile, BOOL *verbose, BOOL *fullMatrix)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -157,21 +158,23 @@ from data file (%s)\n", dataFile);
             char   *outfile     Output file (or blank string)
             char   *dataFile    Optional data file (or blank string)
             BOOL   *verbose     Verbose output from subgroup code
+            BOOL   *fullMatrix  Data file is a full scoring matrix
    Returns: BOOL                Success?
 
    Parse the command line
    
    12.06.97 Original    By: ACRM
    26.11.18 Added data file and verbose options
+   05.02.19 Added -f
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *dataFile, BOOL *verbose)
+                  char *dataFile, BOOL *verbose, BOOL *fullMatrix)
 {
    argc--;
    argv++;
 
-   infile[0] = outfile[0] = dataFile[0] = '\0';
-   *verbose  = FALSE;
+   infile[0] = outfile[0]  = dataFile[0] = '\0';
+   *verbose  = *fullMatrix = FALSE;
    
    while(argc)
    {
@@ -187,6 +190,9 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'v':
             *verbose = TRUE;
+            break;
+         case 'f':
+            *fullMatrix = TRUE;
             break;
          default:
             return(FALSE);
@@ -227,18 +233,20 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    27.11.18 V2.1
    08.01.19 V2.2
    05.02.19 V2.3
+   05.02.19 V2.4
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V2.3 (c) 1997-2019, Andrew C.R. Martin, \
+   fprintf(stderr,"\nhsubgroup V2.4 (c) 1997-2019, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Original subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
    fprintf(stderr,"   Used with permission\n");
    
-   fprintf(stderr,"\nUsage: hsubgroup [-d datafile][-v] [in.pir \
+   fprintf(stderr,"\nUsage: hsubgroup [-d datafile [-f]][-v] [in.pir \
 [out.txt]]\n");
    fprintf(stderr,"       -d Specify data file\n");
+   fprintf(stderr,"       -f Data file is a full matrix\n");
    fprintf(stderr,"       -v Verbose - shows best and 2nd best scores\n");
    fprintf(stderr,"          and the second best match\n");
    fprintf(stderr,"\nAssigns sub-group information for antibody \

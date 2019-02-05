@@ -691,12 +691,13 @@ void FindSubgroupSetVerbose(BOOL verbose)
 
 
 /************************************************************************/
-/*>BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType, 
-                          int *subGroup)
+/*>BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence, 
+                          int *chainType, int *subGroup)
    ----------------------------------------------------------------
 *//**
    \param[in]   fp           - file of residue subgroup specifications
                                (NULL - use default hardcoded values)
+   \param[in]   fullMatrix   - datafile is a full scoring matrix
    \param[in]   sequence     - the sequence of interest
    \param[out]  chainType    - chain type: CHAINTYPE_HEAVY
                                            CHAINTYPE_KAPPA
@@ -710,9 +711,10 @@ void FindSubgroupSetVerbose(BOOL verbose)
 -  01.08.18 Complete rewrite
 -  27.11.18 Now returns BOOL and can read file of residue frequencies
             Also deals with verbose printing
+-  05.02.19 Added fullMatrix handling
 */
-BOOL FindHumanSubgroup(FILE *fp, char *sequence, int *chainType,
-                       int *subGroup)
+BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
+                       int *chainType, int *subGroup)
 {
    static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
    static int          sInitialized            = 0,
