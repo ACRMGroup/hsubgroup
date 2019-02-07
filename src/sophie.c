@@ -807,9 +807,10 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
 
    if(sVerbose)
    {
-      printf(" [%f %f] ", maxVal, secondMaxVal);
-      printf("(%s)",fullMatrix ? fmSubGroupInfo[secondBestSubGroupCount].name :
+      printf(",%f,", maxVal);
+      printf("%s,",fullMatrix ? fmSubGroupInfo[secondBestSubGroupCount].name :
              subGroupInfo[secondBestSubGroupCount].name);
+      printf("%f",secondMaxVal);
    }
    printf("\n");
 #ifdef DEBUG
