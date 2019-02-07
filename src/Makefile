@@ -5,7 +5,7 @@ LINK2	=
 CC	= cc -I$(HOME)/include -L$(HOME)/lib
 
 EXE	= hsubgroup
-OFILES	= hsubgroup.o sophie.o
+OFILES	= hsubgroup.o sophie.o fullmatrix.o
 
 $(EXE) : $(OFILES) $(LFILES)
 	$(CC) $(COPT) -o $(EXE) $(OFILES) $(LFILES) -lbiop -lgen -lm -lxml2

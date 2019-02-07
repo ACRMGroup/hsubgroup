@@ -80,30 +80,11 @@
 #include <ctype.h>
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
+#include "subgroup.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXSUBTYPES     100  /* The max number of subtypes              */
-#define MAXREFSEQLEN     21  /* The length of the reference sequences   */
-#define MAXTRUNCATION     6  /* Amount we can Nter truncate a sequence  */
-#define MAXEXTENSION     20  /* Amount we can Nter extend a sequence    */
-#define MAXBUFF         320  /* General purpose buffer                  */
-#define OFFSETTRUNCATION  1  /* Using offsets for Nter truncation       */
-#define OFFSETEXTENSION   2  /* Using offsets for Nter extension        */
-
-/* Used to store info on a subgroup                                     */
-typedef struct
-{
-   REAL topScores[MAXREFSEQLEN],
-        secondScores[MAXREFSEQLEN];
-   int  chainType,
-        subGroup;
-   char name[MAXBUFF],
-        topSeq[MAXBUFF],
-        secondSeq[MAXBUFF];
-} SUBGROUPINFO;
-
 
 /************************************************************************/
 /* Globals
@@ -717,6 +698,7 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
                        int *chainType, int *subGroup)
 {
    static SUBGROUPINFO subGroupInfo[MAXSUBTYPES];
+   static FMSUBGROUPINFO   fmSubGroupInfo[MAXSUBTYPES];
    static int          sInitialized            = 0,
                        sNSubGroups             = 0;
    int                 bestSubGroupCount       = -1,
@@ -735,7 +717,14 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
       sInitialized = 1;
       if(fp != NULL)
       {
-         sNSubGroups = ReadSubgroupData(fp, subGroupInfo);
+         if(fullMatrix)
+         {
+            sNSubGroups = ReadFullMatrix(fp, fmSubGroupInfo);
+         }
+         else
+         {
+            sNSubGroups = ReadSubgroupData(fp, subGroupInfo);
+         }
          if(!sNSubGroups)
             return(FALSE);
       }
@@ -753,8 +742,17 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
       */
       for(offset = 0; offset < MAXTRUNCATION; offset++)
       {
-         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                         offset, OFFSETTRUNCATION);
+         if(fullMatrix)
+         {
+            val = CalcFullScore(fmSubGroupInfo[subGroupCount], sequence, 
+                                offset, OFFSETTRUNCATION);
+         }
+         else
+         {
+            val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                            offset, OFFSETTRUNCATION);
+         }
+         
          if(val > maxVal) 
          {
             maxVal            = val;
@@ -776,8 +774,17 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
       */
       for(offset = 0; offset < MAXEXTENSION; offset++)
       {
-         val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                         offset, OFFSETEXTENSION);
+         if(fullMatrix)
+         {
+            val = CalcFullScore(fmSubGroupInfo[subGroupCount], sequence, 
+                                offset, OFFSETEXTENSION);
+         }
+         else
+         {
+            val = CalcScore(subGroupInfo[subGroupCount], sequence, 
+                            offset, OFFSETEXTENSION);
+         }
+         
          if(val > maxVal) 
          {
             maxVal            = val;
@@ -795,11 +802,14 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
    }
 
    /* Print the winning name                                            */
-   printf("%s",subGroupInfo[bestSubGroupCount].name);
+   printf("%s",fullMatrix ? fmSubGroupInfo[bestSubGroupCount].name :
+          subGroupInfo[bestSubGroupCount].name);
+
    if(sVerbose)
    {
       printf(" [%f %f] ", maxVal, secondMaxVal);
-      printf("(%s)",subGroupInfo[secondBestSubGroupCount].name);
+      printf("(%s)",fullMatrix ? fmSubGroupInfo[secondBestSubGroupCount].name :
+             subGroupInfo[secondBestSubGroupCount].name);
    }
    printf("\n");
 #ifdef DEBUG

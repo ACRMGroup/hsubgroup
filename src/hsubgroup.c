@@ -60,12 +60,11 @@
 #include "bioplib/MathType.h"
 #include "bioplib/seq.h"
 #include "bioplib/general.h"
-
+#include "subgroup.h"
 
 /************************************************************************/
 /* Defines and macros
 */
-#define MAXBUFF 160
 #define MAXSEQ 8
 
 
@@ -76,9 +75,6 @@ int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
                   char *dataFile, BOOL *verbose, BOOL *fullMatrix);
 void Usage(void);
-
-/* External                                                             */
-#include "sophie.h"
 
 
 /************************************************************************/
