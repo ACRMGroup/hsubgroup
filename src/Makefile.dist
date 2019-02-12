@@ -3,7 +3,7 @@ LINK1 =
 LINK2 =
 CC    = cc
 
-OFILES = hsubgroup.o sophie.o
+OFILES = hsubgroup.o sophie.o fullmatrix.o
 LFILES = bioplib/ReadPIR.o bioplib/OpenStdFiles.o bioplib/GetWord.o \
  bioplib/array2.o
 

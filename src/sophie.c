@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       sophie.c
    
-   Version:    V2.3
-   Date:       05.02.19
+   Version:    V3.0
+   Date:       12.02.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -68,9 +68,9 @@
                     code to deal with data files having other than 13
                     subtypes!
    V2.3  05.02.19   Added info to verbose output on the second best match
+   V3.0  12.02.19   Added support for full matrices
 
 *************************************************************************/
-
 /* Includes
 */
 #include <stdio.h>
@@ -90,7 +90,6 @@
 /* Globals
 */
 static BOOL sVerbose = FALSE;
-
 
 /************************************************************************/
 /* Prototypes
@@ -808,7 +807,8 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
    if(sVerbose)
    {
       printf(",%f,", maxVal);
-      printf("%s,",fullMatrix ? fmSubGroupInfo[secondBestSubGroupCount].name :
+      printf("%s,",  fullMatrix ?
+             fmSubGroupInfo[secondBestSubGroupCount].name :
              subGroupInfo[secondBestSubGroupCount].name);
       printf("%f",secondMaxVal);
    }

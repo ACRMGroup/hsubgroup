@@ -1,18 +1,91 @@
+/*************************************************************************
 
+   Program:    hsubgroup
+   File:       hsubgroup.c
+   
+   Version:    V3.0
+   Date:       12.02.19
+   Function:   Assign human subgroups from antibody sequences in PIR file
+   
+   Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
+   Author:     Dr. Andrew C. R. Martin
+   Address:    Biomolecular Structure & Modelling Unit,
+               Department of Biochemistry & Molecular Biology,
+               University College,
+               Gower Street,
+               London.
+               WC1E 6BT.
+   EMail:      andrew@bioinf.org.uk
+               
+**************************************************************************
+
+   This program is not in the public domain, but it may be copied
+   according to the conditions laid out in the accompanying file
+   COPYING.DOC
+
+   The code may be modified as required, but any modifications must be
+   documented so that the person responsible can be identified. If someone
+   else breaks this code, I don't want to be blamed for code that does not
+   work! 
+
+   The code may not be sold commercially or included as part of a 
+   commercial product except as described in the file COPYING.DOC.
+
+**************************************************************************
+
+   Description:
+   ============
+
+**************************************************************************
+
+   Usage:
+   ======
+
+**************************************************************************
+
+   Revision History:
+   =================
+   V1.0  16.06.97   Original
+   V2.0  01.08.18   Complete rewrite of underlying code
+   V2.1  27.08.18   Allows data to be read from a file and records best
+                    and second-best scores
+   V2.2  08.01.19   Fixes problem with DOS files
+   V2.3  05.02.19   Added info to verbose output on the second best match
+   V3.0  12.02.19   Added support for full matrices
+
+*************************************************************************/
+/* Includes
+*/
 #include <stdio.h>
 #include <ctype.h>
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
 #include "subgroup.h"
 
+
+/************************************************************************/
+/* Defines and macros
+*/
 #define ILETTER(x) ((int)(x)-65)
 #define LETTER(x) ((char)((x)+65))
 
-
+/************************************************************************/
+/* Prototypes
+*/
 static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo);
 
+/************************************************************************/
+/*>int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
+   --------------------------------------------------------
+*//**
+   \param[in]   *fp          File pointer for matrix file
+   \param[out]  *fullMatrix  The populated matrix
+   \return                   The number of matrix entries
 
+   Reads a full-matrix representation of residue frequencies
 
+-  12.02.19 Original   By: ACRM
+*/
 int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
 {
    char       buffer[MAXBUFF],
@@ -30,13 +103,16 @@ int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
       {
          if(entryCount >= MAXSUBTYPES)
          {
-            fprintf(stderr,"Error: too many subtypes in data file. Increase MAXSUBTYPES\n");
+            fprintf(stderr,"Error: too many subtypes in data file. \
+Increase MAXSUBTYPES\n");
             exit(1);
          }
          
          inData = TRUE;
          chp = buffer+1;
-         sscanf(chp, "%s %d", fullMatrix[entryCount].type, &(fullMatrix[entryCount].index));
+         sscanf(chp, "%s %d",
+                fullMatrix[entryCount].type,
+                &(fullMatrix[entryCount].index));
 
          switch(fullMatrix[entryCount].type[0])
          {
@@ -85,6 +161,17 @@ int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
    return(entryCount);
 }
 
+
+/************************************************************************/
+/*>static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo)
+   -----------------------------------------------------------
+*//**
+   \param[in,out] *subGroupInfo  The subgroup information matrix
+
+   Populates the top score information in the subgroup full matrix.
+
+-  12.02.19 Original   By: ACRM
+*/
 static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo)
 {
    int aaNum, posNum;
@@ -111,7 +198,23 @@ static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo)
 }
 
 
-REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence, int offset, int offsetType)
+/************************************************************************/
+/*>REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence, 
+                      int offset, int offsetType)
+   ---------------------------------------------------------------
+*//**
+   \param[in]   subGroupInfo   The full matrix information for a subgroup
+   \param[in]   sequence       The sequence to test
+   \param[in]   offset         Offset into the sequence
+   \param[in]   offsetType     Truncation or extension
+   \return                     The score for this sequence
+
+   Calculates the score for a sequence against a sub group matrix
+
+-  12.02.19 Original   By: ACRM
+*/
+REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence,
+                   int offset, int offsetType)
 {
    REAL score    = 0.0,
         scoreMax = 0.0;
@@ -152,7 +255,15 @@ REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence, int offset, int 
 }
 
 
+/************************************************************************/
 #ifdef TEST_READFMSUBGROUPINFO
+/*>int main(int argc, char **argv)
+   -------------------------------
+*//**
+   Test code for reading the matrix
+
+-  12.02.19 Original   By: ACRM
+*/
 int main(int argc, char **argv)
 {
    FILE *fp;
@@ -165,7 +276,8 @@ int main(int argc, char **argv)
       for(entryNum=0; entryNum<nEntries; entryNum++)
       {
          int aaNum, position;
-         fprintf(stdout, "Class: %s Index: %d\n", fullMatrix[entryNum].type, fullMatrix[entryNum].index);
+         fprintf(stdout, "Class: %s Index: %d\n",
+                 fullMatrix[entryNum].type, fullMatrix[entryNum].index);
          fprintf(stdout, "Name: %s\n", fullMatrix[entryNum].name);
          for(aaNum=0; aaNum<26; aaNum++)
          {
@@ -178,7 +290,8 @@ int main(int argc, char **argv)
                 fprintf(stdout, "%c", LETTER(aaNum));
             for(position=0; position<MAXREFSEQLEN; position++)
             {
-               fprintf(stdout, "%6.3f", fullMatrix[entryNum].scores[position][aaNum]);
+               fprintf(stdout, "%6.3f",
+                       fullMatrix[entryNum].scores[position][aaNum]);
             }
             fprintf(stdout, "\n");
          }
@@ -186,7 +299,8 @@ int main(int argc, char **argv)
          fprintf(stdout, "Top Scores:\n ");
          for(position=0; position<MAXREFSEQLEN; position++)
          {
-            fprintf(stdout, "%6.3f", fullMatrix[entryNum].topScores[position]);
+            fprintf(stdout, "%6.3f",
+                    fullMatrix[entryNum].topScores[position]);
          }
          fprintf(stdout, "\n");
       }
