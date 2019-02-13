@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       hsubgroup.c
    
-   Version:    V3.0
-   Date:       12.02.19
+   Version:    V3.1
+   Date:       13.02.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -52,6 +52,8 @@
    V2.2  08.01.19   Fixes problem with DOS files
    V2.3  05.02.19   Added info to verbose output on the second best match
    V3.0  12.02.19   Added support for full matrices
+   V3.1  13.02.19   Added better handling of X in the sequence and code
+                    to calculate product-based scores
 
 *************************************************************************/
 /* Includes
@@ -74,7 +76,8 @@
 */
 int main(int argc, char **argv);
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *dataFile, BOOL *verbose, BOOL *fullMatrix);
+                  char *dataFile, BOOL *verbose, BOOL *fullMatrix,
+                  BOOL *includeX, BOOL *doProduct);
 void Usage(void);
 
 
@@ -100,13 +103,13 @@ int main(int argc, char **argv)
         *seqs[MAXSEQ];
    int  nchain, i,
         class, subGroup;
-   BOOL punct, error, verbose, fullMatrix;
+   BOOL punct, error, verbose, fullMatrix, includeX, doProduct;
 
    dataFile[0] = '\0';
    if(ParseCmdLine(argc, argv, infile, outfile, dataFile, &verbose,
-                   &fullMatrix))
+                   &fullMatrix, &includeX, &doProduct))
    {
-      FindSubgroupSetVerbose(verbose);
+      FindSubgroupSetOptions(verbose, includeX, doProduct);
       
       if(dataFile[0] != '\0')
       {
@@ -148,7 +151,8 @@ from data file (%s)\n", dataFile);
 
 /************************************************************************/
 /*>BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                     char *dataFile, BOOL *verbose, BOOL *fullMatrix)
+                     char *dataFile, BOOL *verbose, BOOL *fullMatrix,
+                     BOOL *includeX, BOOL *doProduct)
    ---------------------------------------------------------------------
    Input:   int    argc         Argument count
             char   **argv       Argument array
@@ -164,15 +168,18 @@ from data file (%s)\n", dataFile);
    12.06.97 Original    By: ACRM
    26.11.18 Added data file and verbose options
    05.02.19 Added -f
+   13.02.19 Added -x and -p
 */
 BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
-                  char *dataFile, BOOL *verbose, BOOL *fullMatrix)
+                  char *dataFile, BOOL *verbose, BOOL *fullMatrix,
+                  BOOL *includeX, BOOL *doProduct)
+
 {
    argc--;
    argv++;
 
    infile[0] = outfile[0]  = dataFile[0] = '\0';
-   *verbose  = *fullMatrix = FALSE;
+   *verbose  = *fullMatrix = *includeX   = *doProduct = FALSE;
    
    while(argc)
    {
@@ -191,6 +198,12 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
             break;
          case 'f':
             *fullMatrix = TRUE;
+            break;
+         case 'x':
+            *includeX = TRUE;
+            break;
+         case 'p':
+            *doProduct = TRUE;
             break;
          default:
             return(FALSE);
@@ -233,17 +246,23 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    05.02.19 V2.3
    05.02.19 V2.4
    12.02.19 V3.0
+   13.02.19 V3.1
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V3.0 (c) 1997-2019, Andrew C.R. Martin, \
+   fprintf(stderr,"\nhsubgroup V3.1 (c) 1997-2019, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Original subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
    fprintf(stderr,"   Used with permission\n");
    
-   fprintf(stderr,"\nUsage: hsubgroup [-d datafile [-f]][-v] [in.pir \
-[out.txt]]\n");
+   fprintf(stderr,"\nUsage: hsubgroup [-x][-p][-d datafile [-f]][-v] \
+[in.pir [out.txt]]\n");
+
+   fprintf(stderr,"       -x Include X characters as part of sequence\n");
+   fprintf(stderr,"       -p Calculate score as a product rather than \
+a sum\n");
+   fprintf(stderr,"       -d Specify data file\n");
    fprintf(stderr,"       -d Specify data file\n");
    fprintf(stderr,"       -f Data file is a full matrix\n");
    fprintf(stderr,"       -v Verbose - shows best and 2nd best scores\n");

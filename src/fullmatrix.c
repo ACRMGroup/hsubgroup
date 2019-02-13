@@ -58,6 +58,7 @@
 */
 #include <stdio.h>
 #include <ctype.h>
+#include <math.h>
 #include "bioplib/general.h"
 #include "bioplib/macros.h"
 #include "subgroup.h"
@@ -93,6 +94,20 @@ int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
    int        entryCount = 0;
    BOOL       inData = FALSE;
    
+
+   for(entryCount=0; entryCount<MAXSUBTYPES; entryCount++)
+   {
+      int i, j;
+      for(i=0; i<MAXREFSEQLEN; i++)
+      {
+         for(j=0; j<26; j++)
+         {
+            fullMatrix[entryCount].scores[i][j] = 0.0;
+         }
+         fullMatrix[entryCount].topScores[i] = 0.0;
+      }
+   }
+
    while(fgets(buffer, MAXBUFF, fp))
    {
       if(buffer[0] == '#')
@@ -200,21 +215,23 @@ static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo)
 
 /************************************************************************/
 /*>REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence, 
-                      int offset, int offsetType)
+                      int offset, int offsetType, BOOL includeX)
    ---------------------------------------------------------------
 *//**
    \param[in]   subGroupInfo   The full matrix information for a subgroup
    \param[in]   sequence       The sequence to test
    \param[in]   offset         Offset into the sequence
    \param[in]   offsetType     Truncation or extension
+   \param[in]   includeX       Include X characters in calculation
    \return                     The score for this sequence
 
    Calculates the score for a sequence against a sub group matrix
 
 -  12.02.19 Original   By: ACRM
+-  13.02.19 Added X checking
 */
 REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence,
-                   int offset, int offsetType)
+                   int offset, int offsetType, BOOL includeX)
 {
    REAL score    = 0.0,
         scoreMax = 0.0;
@@ -224,12 +241,15 @@ REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence,
    {
       for(i = 0; i < (MAXREFSEQLEN-offset); i++) 
       {
-         score += subGroupInfo.scores[i+offset][ILETTER(sequence[i])];
+         if((sequence[i] != 'X') || includeX)
+         {
+            score += subGroupInfo.scores[i+offset][ILETTER(sequence[i])];
                                                 
-         /* Calculate the best score we could get against the most common 
-            residues
-         */
-         scoreMax += subGroupInfo.topScores[i+offset];
+            /* Calculate the best score we could get against the most 
+               common residues
+            */
+            scoreMax += subGroupInfo.topScores[i+offset];
+         }
       }
    }
    else  /* OFFSETEXTENSION                                             */
@@ -242,16 +262,38 @@ REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence,
       
       for(i = 0; i < MAXREFSEQLEN; i++) 
       {
-         score += subGroupInfo.scores[i][ILETTER(sequence[i+offset])];
+         if((sequence[i+offset] != 'X') || includeX)
+         {
+            score += subGroupInfo.scores[i][ILETTER(sequence[i+offset])];
          
-         /* Calculate the best score we could get against the most common 
-            residues
-         */
-         scoreMax += subGroupInfo.topScores[i];
+            /* Calculate the best score we could get against the most 
+               common residues
+            */
+            scoreMax += subGroupInfo.topScores[i];
+         }
       }
    }
 
    return((score*100.0)/scoreMax);
+}
+
+/************************************************************************/
+void fmTakeLogs(FMSUBGROUPINFO *subGroupInfo, int nSubGroups)
+{
+   int sgNum, i, j;
+   for(sgNum=0; sgNum<nSubGroups; sgNum++)
+   {
+      for(i=0; i<MAXREFSEQLEN; i++)
+      {
+         for(j=0; j<26; j++)
+         {
+            subGroupInfo[sgNum].scores[i][j] = 
+               log(subGroupInfo[sgNum].scores[i][j] + 1);
+         }
+         subGroupInfo[sgNum].topScores[i] = 
+            log(subGroupInfo[sgNum].topScores[i] + 1);
+      }
+   }
 }
 
 

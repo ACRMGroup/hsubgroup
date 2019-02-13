@@ -78,6 +78,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <math.h>
 #include "bioplib/macros.h"
 #include "bioplib/general.h"
 #include "subgroup.h"
@@ -89,14 +90,16 @@
 /************************************************************************/
 /* Globals
 */
-static BOOL sVerbose = FALSE;
+static BOOL sVerbose   = FALSE;
+static BOOL sIncludeX  = FALSE;
+static BOOL sDoProduct = FALSE;
 
 /************************************************************************/
 /* Prototypes
 */
 #include "sophie.h"
 static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
-                      int offset, int offsetType);
+                      int offset, int offsetType, BOOL includeX);
 static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType, 
                              int subGroup,
                              char *name, 
@@ -116,6 +119,7 @@ static void InitSubgroupInfo(SUBGROUPINFO *subGroupInfo, int chainType,
                              REAL sv20);
 static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo);
 static int ReadSubgroupData(FILE *fp, SUBGROUPINFO *subGroupInfo);
+static void takeLogs(SUBGROUPINFO *subGroupInfo, int nSubGroups);
 
 
 /************************************************************************/
@@ -405,8 +409,8 @@ static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
 
 /************************************************************************/
 /*static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
-                        int offset, int offsetType)
-  ------------------------------------------------------------
+                        int offset, int offsetType, BOOL includeX)
+  ----------------------------------------------------------------
 *//**
    \param[in]  subGroupInfo - Information for the subgroup we are 
                               looking at
@@ -417,15 +421,17 @@ static int InitializeAllSubgroups(SUBGROUPINFO *subGroupInfo)
                                                  being Nter truncated
                               OFFSETEXTENSION  - account for the sequence
                                                  being Nter extended
+   \param[in]  includeX     - include X characters in calculations
 
    Calculates the score for the test sequence against a specified
    subgroup
 
 -  16.06.97 Original from Sophie's code
 -  01.08.18 Complete rewrite
+-  13.02.19 Added checking for X in sequence
 */
 static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence, 
-                      int offset, int offsetType)
+                      int offset, int offsetType, BOOL includeX)
 {
    REAL score    = 0.0,
         scoreMax = 0.0;
@@ -435,25 +441,28 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
    {
       for(i = 0; i < (MAXREFSEQLEN-offset); i++) 
       {
-         /* Test if the residue matches the most common one at this 
-            position 
-         */
-         if(sequence[i] == subGroupInfo.topSeq[i+offset])
+         if((sequence[i] != 'X') || includeX)
          {
-            score += subGroupInfo.topScores[i+offset];
-         }
-         else /* If not, test if it matches the next most common        */
-         {
-            if(sequence[i] == subGroupInfo.secondSeq[i+offset])
+            /* Test if the residue matches the most common one at this 
+               position 
+            */
+            if(sequence[i] == subGroupInfo.topSeq[i+offset])
             {
-               score += subGroupInfo.secondScores[i+offset];
+               score += subGroupInfo.topScores[i+offset];
             }
+            else /* If not, test if it matches the next most common     */
+            {
+               if(sequence[i] == subGroupInfo.secondSeq[i+offset])
+               {
+                  score += subGroupInfo.secondScores[i+offset];
+               }
+            }
+            
+            /* Calculate the best score we could get against the most 
+               common residues
+            */
+            scoreMax += subGroupInfo.topScores[i+offset];
          }
-         
-         /* Calculate the best score we could get against the most common 
-            residues
-         */
-         scoreMax += subGroupInfo.topScores[i+offset];
       }
    }
    else  /* OFFSETEXTENSION                                             */
@@ -466,25 +475,28 @@ static REAL CalcScore(SUBGROUPINFO subGroupInfo, char *sequence,
       
       for(i = 0; i < MAXREFSEQLEN; i++) 
       {
-         /* Test if the residue matches the most common one at this 
-            position 
-         */
-         if(sequence[i+offset] == subGroupInfo.topSeq[i])
+         if((sequence[i+offset] != 'X') || includeX)
          {
-            score += subGroupInfo.topScores[i];
-         }
-         else /* If not, test if it matches the next most common        */
-         {
-            if(sequence[i+offset] == subGroupInfo.secondSeq[i])
+            /* Test if the residue matches the most common one at this 
+               position 
+            */
+            if(sequence[i+offset] == subGroupInfo.topSeq[i])
             {
-               score += subGroupInfo.secondScores[i];
+               score += subGroupInfo.topScores[i];
             }
+            else /* If not, test if it matches the next most common     */
+            {
+               if(sequence[i+offset] == subGroupInfo.secondSeq[i])
+               {
+                  score += subGroupInfo.secondScores[i];
+               }
+            }
+            
+            /* Calculate the best score we could get against the most 
+               common residues
+            */
+            scoreMax += subGroupInfo.topScores[i];
          }
-         
-         /* Calculate the best score we could get against the most common 
-            residues
-         */
-         scoreMax += subGroupInfo.topScores[i];
       }
    }
 
@@ -655,18 +667,23 @@ Increase MAXSUBTYPES.\n");
 
 
 /************************************************************************/
-/*>void FindSubgroupSetVerbose(BOOL verbose)
-   -----------------------------------------
+/*>void FindSubgroupSetOptions(BOOL verbose, BOOL includeX, 
+                               BOOL doProduct)
+   --------------------------------------------------------
 *//*
    \param[in]    verbose    Verbose setting
 
    Sets the static 'verbose' variable
 
 -  27.11.18  Original   By: ACRM
+-  13.02.19  Added includeX and doProduct
 */
-void FindSubgroupSetVerbose(BOOL verbose)
+void FindSubgroupSetOptions(BOOL verbose, BOOL includeX, 
+                            BOOL doProduct)
 {
-   sVerbose = verbose;
+   sVerbose   = verbose;
+   sIncludeX  = includeX;
+   sDoProduct = doProduct;
 }
 
 
@@ -719,10 +736,14 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
          if(fullMatrix)
          {
             sNSubGroups = ReadFullMatrix(fp, fmSubGroupInfo);
+            if(sDoProduct)
+               fmTakeLogs(fmSubGroupInfo, sNSubGroups);
          }
          else
          {
             sNSubGroups = ReadSubgroupData(fp, subGroupInfo);
+            if(sDoProduct)
+               takeLogs(subGroupInfo, sNSubGroups);
          }
          if(!sNSubGroups)
             return(FALSE);
@@ -730,6 +751,8 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
       else
       {
          sNSubGroups = InitializeAllSubgroups(subGroupInfo);
+         if(sDoProduct)
+            takeLogs(subGroupInfo, sNSubGroups);
       }
    }
    
@@ -744,12 +767,12 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
          if(fullMatrix)
          {
             val = CalcFullScore(fmSubGroupInfo[subGroupCount], sequence, 
-                                offset, OFFSETTRUNCATION);
+                                offset, OFFSETTRUNCATION, sIncludeX);
          }
          else
          {
             val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                            offset, OFFSETTRUNCATION);
+                            offset, OFFSETTRUNCATION, sIncludeX);
          }
          
          if(val > maxVal) 
@@ -776,12 +799,12 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
          if(fullMatrix)
          {
             val = CalcFullScore(fmSubGroupInfo[subGroupCount], sequence, 
-                                offset, OFFSETEXTENSION);
+                                offset, OFFSETEXTENSION, sIncludeX);
          }
          else
          {
             val = CalcScore(subGroupInfo[subGroupCount], sequence, 
-                            offset, OFFSETEXTENSION);
+                            offset, OFFSETEXTENSION, sIncludeX);
          }
          
          if(val > maxVal) 
@@ -823,6 +846,22 @@ BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *sequence,
    *subGroup  = subGroupInfo[bestSubGroupCount].subGroup;
 
    return(TRUE);
+}
+
+
+static void takeLogs(SUBGROUPINFO *subGroupInfo, int nSubGroups)
+{
+   int sgNum, i;
+   for(sgNum=0; sgNum<nSubGroups; sgNum++)
+   {
+      for(i=0; i<MAXREFSEQLEN; i++)
+      {
+         subGroupInfo[sgNum].topScores[i] = 
+            log(subGroupInfo[sgNum].topScores[i] + 1);
+         subGroupInfo[sgNum].secondScores[i] = 
+            log(subGroupInfo[sgNum].secondScores[i] + 1);
+      }
+   }
 }
 
 
