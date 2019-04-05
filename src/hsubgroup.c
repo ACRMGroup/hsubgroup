@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       hsubgroup.c
    
-   Version:    V3.1
-   Date:       13.02.19
+   Version:    V3.2
+   Date:       05.04.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -54,6 +54,7 @@
    V3.0  12.02.19   Added support for full matrices
    V3.1  13.02.19   Added better handling of X in the sequence and code
                     to calculate product-based scores
+   V3.2  05.04.19   Zero the counter of the number of subtypes
 
 *************************************************************************/
 /* Includes
@@ -247,10 +248,11 @@ BOOL ParseCmdLine(int argc, char **argv, char *infile, char *outfile,
    05.02.19 V2.4
    12.02.19 V3.0
    13.02.19 V3.1
+   05.04.19 V3.2
 */
 void Usage(void)
 {
-   fprintf(stderr,"\nhsubgroup V3.1 (c) 1997-2019, Andrew C.R. Martin, \
+   fprintf(stderr,"\nhsubgroup V3.2 (c) 1997-2019, Andrew C.R. Martin, \
 UCL\n");
    fprintf(stderr,"Original subgroup assignment code (c) Sophie Deret, \
 Necker Entants Malade, Paris\n");
@@ -262,7 +264,6 @@ Necker Entants Malade, Paris\n");
    fprintf(stderr,"       -x Include X characters as part of sequence\n");
    fprintf(stderr,"       -p Calculate score as a product rather than \
 a sum\n");
-   fprintf(stderr,"       -d Specify data file\n");
    fprintf(stderr,"       -d Specify data file\n");
    fprintf(stderr,"       -f Data file is a full matrix\n");
    fprintf(stderr,"       -v Verbose - shows best and 2nd best scores\n");

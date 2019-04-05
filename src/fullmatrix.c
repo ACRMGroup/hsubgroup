@@ -3,8 +3,8 @@
    Program:    hsubgroup
    File:       hsubgroup.c
    
-   Version:    V3.0
-   Date:       12.02.19
+   Version:    V3.2
+   Date:       05.04.19
    Function:   Assign human subgroups from antibody sequences in PIR file
    
    Copyright:  (c) Dr. Andrew C. R. Martin / UCL 1997-2019
@@ -52,6 +52,7 @@
    V2.2  08.01.19   Fixes problem with DOS files
    V2.3  05.02.19   Added info to verbose output on the second best match
    V3.0  12.02.19   Added support for full matrices
+   V3.2  05.04.19   Zero the counter of the number of subtypes
 
 *************************************************************************/
 /* Includes
@@ -86,13 +87,14 @@ static void PopulateTopScores(FMSUBGROUPINFO *subGroupInfo);
    Reads a full-matrix representation of residue frequencies
 
 -  12.02.19 Original   By: ACRM
+-  05.04.19 Reset entryCount after zeroing the matrix
 */
 int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
 {
    char       buffer[MAXBUFF],
               *chp;
    int        entryCount = 0;
-   BOOL       inData = FALSE;
+   BOOL       inData     = FALSE;
    
 
    for(entryCount=0; entryCount<MAXSUBTYPES; entryCount++)
@@ -108,6 +110,7 @@ int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix)
       }
    }
 
+   entryCount = 0;
    while(fgets(buffer, MAXBUFF, fp))
    {
       if(buffer[0] == '#')
