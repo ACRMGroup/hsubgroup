@@ -1,7 +1,7 @@
 /*************************************************************************
 
-   Program:    hsubgroup
-   File:       hsubgroup.c
+   Program:    
+   File:       subgroup.h
    
    Version:    V3.0
    Date:       12.02.19
@@ -99,9 +99,10 @@ typedef struct {
 */
 BOOL FindHumanSubgroup(FILE *fp, BOOL fullMatrix, char *testSequence,
                        int *chainType, int *subGroup);
-void FindSubgroupSetVerbose(BOOL verbose);
+void FindSubgroupSetOptions(BOOL verbose, BOOL includeX, BOOL doProduct);
 
 /* Not for end-user use                                                 */
 int ReadFullMatrix(FILE *fp, FMSUBGROUPINFO *fullMatrix);
 REAL CalcFullScore(FMSUBGROUPINFO subGroupInfo, char *sequence,
-                   int offset, int offsetType);
+                   int offset, int offsetType, BOOL includeX);
+void fmTakeLogs(FMSUBGROUPINFO *subGroupInfo, int nSubGroups);
